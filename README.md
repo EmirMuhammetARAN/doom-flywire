@@ -1,3 +1,14 @@
+---
+title: DOOM-FlyWire Connectome
+emoji: 🪰
+colorFrom: purple
+colorTo: green
+sdk: gradio
+app_file: app.py
+pinned: false
+license: mit
+---
+
 # 🧠 DOOM-FlyWire: 139,248-Neuron Biological Connectome Autonomous Agent & In Silico Neuro-Sandbox
 
 [![Connectome: FlyWire Nature 2024](https://img.shields.io/badge/Connectome-FlyWire%20(Nature%202024)-00f5d4.svg)](https://flywire.ai)

@@ -1,0 +1,13 @@
+build-essential
+cmake
+libboost-all-dev
+libsdl2-dev
+libopenal-dev
+zlib1g-dev
+libbz2-dev
+libjpeg-dev
+libfluidsynth-dev
+libgme-dev
+libgl1
+libglib2.0-0
+libgomp1
