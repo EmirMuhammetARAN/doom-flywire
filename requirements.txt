@@ -1,0 +1,15 @@
+# DOOM-FlyWire Requirements
+# Compatible with Python >= 3.10 and CUDA-enabled PyTorch
+
+numpy>=1.23.0
+pandas>=1.5.0
+scipy>=1.10.0
+pyarrow>=11.0.0
+matplotlib>=3.7.0
+vizdoom>=1.2.0
+torch>=2.0.0
+pillow>=9.5.0
+fastapi>=0.100.0
+uvicorn>=0.22.0
+websockets>=11.0
+tqdm>=4.65.0

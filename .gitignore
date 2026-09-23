@@ -1,0 +1,36 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*py.class
+*.so
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ViZDoom Runtime Files
+_vizdoom.ini
+*.whl
+
+# Large Biological Datasets & Caches (raw feather/tsv ignored, cache tracked via LFS)
+data/*
+!data/.gitkeep
+!models/.gitkeep
+
+# Temporary / Scratch Files
+scratch/
+*.log
+*.tmp
+

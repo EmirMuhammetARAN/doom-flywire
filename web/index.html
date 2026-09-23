@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOOM-FlyWire: 3D 139,248-Neuron Connectome Neural Activity Visualizer</title>
+  <meta name="description" content="A real-time whole-brain biological digital twin running the complete Drosophila melanogaster connectome (FlyWire Nature 2024) inside ViZDoom with an interactive 3D WebGL neural activity visualizer.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700;800&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Three.js + OrbitControls (Served locally for 100% reliability, zero CDN dependence) -->
+  <script src="/js/three.min.js"></script>
+  <script src="/js/OrbitControls.js"></script>
+
+  <style>
+    :root {
+      --bg-dark: #06080e;
+      --card-bg: rgba(13, 17, 28, 0.85);
+      --card-border: rgba(0, 245, 212, 0.2);
+      --accent-cyan: #00faff;
+      --accent-blue: #0d61ff;
+      --accent-purple: #b840ff;
+      --accent-pink: #ff2685;
+      --accent-amber: #ffbf1a;
+      --accent-emerald: #14ff33;
+      --accent-danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(0, 245, 212, 0.06) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(192, 132, 252, 0.07) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.03) 0%, transparent 60%);
+      color: var(--text-main);
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 30px;
+    }
+
+    header {
+      padding: 14px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(14px);
+      background: rgba(6, 8, 14, 0.9);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.35rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent-cyan), #00bb99);
+      color: #000;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+    }
+
+    .header-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      color: var(--accent-emerald);
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 10px var(--accent-emerald);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 1540px;
+      margin: 20px auto;
+      padding: 0 24px;
+    }
+
+    .glass-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      backdrop-filter: blur(18px);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent-cyan);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* DOOM Viewport */
+    .viewport-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid rgba(0, 245, 212, 0.35);
+      box-shadow: 0 0 28px rgba(0, 245, 212, 0.15);
+    }
+
+    #doomCanvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .game-hud {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .hud-box {
+      background: rgba(0, 0, 0, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .hud-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .hud-val {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--accent-cyan);
+      margin-top: 2px;
+    }
+
+    /* Action Probabilities */
+    .action-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .action-item {
+      display: grid;
+      grid-template-columns: 110px 1fr 50px;
+      align-items: center;
+      gap: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+    }
+
+    .progress-track {
+      background: rgba(255, 255, 255, 0.08);
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.08s ease-out;
+    }
+
+    .fill-left { background: #0d61ff; }
+    .fill-right { background: #00faff; }
+    .fill-attack { background: #14ff33; }
+
+    /* 3D Brain Container */
+    .brain-canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: radial-gradient(circle at 50% 50%, #0d1322 0%, #04060c 100%);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 2px solid rgba(192, 132, 252, 0.35);
+      box-shadow: 0 0 30px rgba(192, 132, 252, 0.15);
+      cursor: grab;
+    }
+
+    .brain-canvas-container:active {
+      cursor: grabbing;
+    }
+
+    .brain-canvas-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Brain Region Chips */
+    .region-chips-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .region-chip {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .chip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .chip-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .chip-val {
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .chip-sub {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+    }
+
+    /* Circuit Transmission Pipeline */
+    .circuit-pipeline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-top: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    .pipeline-node {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.15s ease;
+    }
+
+    .pipeline-node.active {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 245, 212, 0.12);
+      box-shadow: 0 0 10px rgba(0, 245, 212, 0.3);
+      color: var(--accent-cyan);
+    }
+
+    .pipeline-arrow {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      animation: pulse 1s infinite alternate;
+    }
+
+    /* Controls Bar */
+    .controls-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn-action {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--accent-cyan);
+      color: #000;
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.4);
+    }
+
+    .speed-btn-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    @media (max-width: 1100px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="main-grid">
+    <!-- LEFT: DOOM Viewport & Actions -->
+    <div class="glass-card">
+      <div class="card-title">
+        <span>ViZDoom Perception-Action Viewport</span>
+        <span id="stepCounter" style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--text-muted);">Step: 0</span>
+      </div>
+
+      <div class="viewport-container">
+        <img id="doomCanvas" alt="Live DOOM Frame from Fruit Fly Connectome">
+        <div id="targetLockBadge" style="display:none; position:absolute; top:12px; right:12px; background:rgba(239,68,68,0.9); color:#fff; font-family:'JetBrains Mono'; font-size:0.75rem; font-weight:800; padding:5px 10px; border-radius:4px; border:1px solid #ff4d4d; box-shadow:0 0 16px rgba(239,68,68,0.8); animation: pulse 0.6s infinite;">🎯 ATTACK SURGE</div>
+      </div>
+
+      <div class="game-hud">
+        <div class="hud-box">
+          <div class="hud-label">Health</div>
+          <div id="hudHealth" class="hud-val">100</div>
+        </div>
+        <div class="hud-box">
+          <div class="hud-label">Ammo</div>
+          <div id="hudAmmo" class="hud-val" style="color:var(--accent-cyan); font-size:1.35rem;">∞</div >
+        </div>
+        <div class="hud-box">
+          <div class="hud-label">Round Kills</div>
+          <div id="hudKills" class="hud-val" style="color:var(--accent-emerald);">0</div>
+        </div>
+        <div class="hud-box">
+          <div class="hud-label">Total Reward</div>
+          <div id="hudScore" class="hud-val">0.0</div>
+        </div>
+      </div>
+
+      <!-- Action Probabilities from Descending Motor Neurons -->
+      <div class="action-bars">
+        <div class="action-item">
+          <span>TURN LEFT</span>
+          <div class="progress-track"><div id="barLeft" class="progress-fill fill-left" style="width:0%;"></div></div>
+          <span id="pctLeft">0%</span>
+        </div>
+        <div class="action-item">
+          <span>TURN RIGHT</span>
+          <div class="progress-track"><div id="barRight" class="progress-fill fill-right" style="width:0%;"></div></div>
+          <span id="pctRight">0%</span>
+        </div>
+        <div class="action-item">
+          <span>ATTACK</span>
+          <div class="progress-track"><div id="barAttack" class="progress-fill fill-attack" style="width:0%;"></div></div>
+          <span id="pctAttack">0%</span>
+        </div>
+      </div>
+
+      <!-- Circuit Transmission Pipeline -->
+      <div class="circuit-pipeline">
+        <div id="pipeRetina" class="pipeline-node active">
+          <span>RETINA</span>
+        </div>
+        <span class="pipeline-arrow">➔</span>
+        <div id="pipeOptic" class="pipeline-node">
+          <span>OPTIC</span>
+        </div>
+        <span class="pipeline-arrow">➔</span>
+        <div id="pipeCompass" class="pipeline-node">
+          <span>COMPASS</span>
+        </div>
+        <span class="pipeline-arrow">➔</span>
+        <div id="pipeMotor" class="pipeline-node">
+          <span>MOTOR</span>
+        </div>
+        <span class="pipeline-arrow">➔</span>
+        <div id="pipeAction" class="pipeline-node">
+          <span>ACTION</span>
+        </div>
+      </div>
+
+      <!-- Controls & Simulation Speed -->
+      <div class="controls-bar">
+        <button id="btnPlayPause" class="btn-action">⏸️ PAUSE</button>
+        <div class="speed-btn-group">
+          <span style="font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono';">Speed:</span>
+          <button class="speed-btn btn-action" data-speed="0.5">0.5x</button>
+          <button class="speed-btn btn-action" data-speed="1.0" style="background:var(--accent-cyan); color:#000;">1.0x</button>
+          <button class="speed-btn btn-action" data-speed="1.5">1.5x</button>
+          <button class="speed-btn btn-action" data-speed="2.0">2.0x</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: 3D FlyWire Connectome Neural Activity Visualizer -->
+    <div class="glass-card">
+      <div class="card-title">
+        <span>3D Connectome</span>
+        <span style="font-size:0.75rem; color:var(--accent-purple); font-family:'JetBrains Mono';">139,248 Neurons</span>
+      </div>
+
+      <!-- 3D WebGL Canvas Container -->
+      <div class="brain-canvas-container" id="brain3DContainer">
+        <div id="brain3DLoading" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); color:var(--accent-cyan); font-family:'JetBrains Mono'; font-size:0.85rem; pointer-events:none; z-index:5;">
+          Loading 139,248 neurons...
+        </div>
+        <div style="position:absolute; bottom:12px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:center; z-index:10; pointer-events:none;">
+          <span style="font-family:'JetBrains Mono'; font-size:0.68rem; color:var(--text-muted); background:rgba(0,0,0,0.6); padding:3px 8px; border-radius:4px;">
+            🖱️ Rotate • Scroll: Zoom • Right-Click: Pan
+          </span>
+          <div style="display:flex; gap:6px;">
+            
+            <button id="btnResetView" style="pointer-events:auto; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; font-family:'JetBrains Mono'; font-size:0.68rem; padding:4px 10px; border-radius:4px; cursor:pointer;">
+              🔄 Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Color-coded Anatomical Regions Chips -->
+      <div class="region-chips-grid">
+        <div class="region-chip" style="border-left: 3px solid var(--accent-blue);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-blue);"></div>
+              <span>Optic Left</span>
+            </div>
+            <span id="rateOpticL" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterOpticL" class="progress-fill" style="width:0%; background:var(--accent-blue);"></div></div>
+        </div>
+
+        <div class="region-chip" style="border-left: 3px solid var(--accent-cyan);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-cyan);"></div>
+              <span>Optic Right</span>
+            </div>
+            <span id="rateOpticR" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterOpticR" class="progress-fill" style="width:0%; background:var(--accent-cyan);"></div></div>
+        </div>
+
+        <div class="region-chip" style="border-left: 3px solid var(--accent-purple);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-purple);"></div>
+              <span>Central Complex</span>
+            </div>
+            <span id="rateCX" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterCX" class="progress-fill" style="width:0%; background:var(--accent-purple);"></div></div>
+        </div>
+
+        <div class="region-chip" style="border-left: 3px solid var(--accent-pink);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-pink);"></div>
+              <span>Mushroom Body</span>
+            </div>
+            <span id="rateKC" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterKC" class="progress-fill" style="width:0%; background:var(--accent-pink);"></div></div>
+        </div>
+
+        <div class="region-chip" style="border-left: 3px solid var(--accent-emerald);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-emerald);"></div>
+              <span>Descending Motor</span>
+            </div>
+            <span id="rateDN" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterDN" class="progress-fill" style="width:0%; background:var(--accent-emerald);"></div></div>
+        </div>
+
+        <div class="region-chip" style="border-left: 3px solid var(--accent-amber);">
+          <div class="chip-header">
+            <div class="chip-title-wrap">
+              <div class="chip-dot" style="background:var(--accent-amber);"></div>
+              <span>Whole Brain</span>
+            </div>
+            <span id="rateWhole" class="chip-val">0.00</span>
+          </div>
+          <div class="progress-track" style="height:4px;"><div id="meterWhole" class="progress-fill" style="width:0%; background:var(--accent-amber);"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let ws = null;
+    let isPaused = false;
+    const doomCanvas = document.getElementById("doomCanvas");
+    const container3D = document.getElementById("brain3DContainer");
+
+    // Real-time telemetry cache
+    let telemetry = {
+      optic_left: 0.25,
+      optic_right: 0.25,
+      central_complex: 0.20,
+      mushroom_body: 0.15,
+      descending_left: 0.22,
+      descending_right: 0.22,
+      whole_brain_firing: 0.23
+    };
+
+    // Regional Anatomy Colors (Hex & RGB)
+    const REGION_COLORS = {
+      optic_left: { hex: 0x0d61ff, str: "#0d61ff", label: "Optic Left" },
+      optic_right: { hex: 0x00faff, str: "#00faff", label: "Optic Right" },
+      central_complex: { hex: 0xb840ff, str: "#b840ff", label: "Central Complex" },
+      mushroom_body: { hex: 0xff2685, str: "#ff2685", label: "Mushroom Body" },
+      central_brain: { hex: 0xffbf1a, str: "#ffbf1a", label: "Central Brain" },
+      descending_left: { hex: 0x14ff33, str: "#14ff33", label: "Descending Left" },
+      descending_right: { hex: 0x14ff33, str: "#14ff33", label: "Descending Right" }
+    };
+
+    // Helper: Generate soft anti-aliased circular sprite for points (no harsh glare)
+    function createGlowSpriteTexture() {
+      const c = document.createElement("canvas");
+      c.width = 32;
+      c.height = 32;
+      const ctx = c.getContext("2d");
+      const grad = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
+      grad.addColorStop(0, "rgba(255, 255, 255, 0.9)");
+      grad.addColorStop(0.35, "rgba(255, 255, 255, 0.5)");
+      grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 32, 32);
+      return new THREE.CanvasTexture(c);
+    }
+
+    // ==========================================
+    // Three.js 3D Interactive Scene Setup
+    // ==========================================
+    let scene, camera, renderer, controls;
+    let brainGroup = new THREE.Group();
+    let pointCloudObjects = {};
+
+    function init3DScene() {
+      const rect = container3D.getBoundingClientRect();
+      const w = container3D.clientWidth || 700;
+      const h = container3D.clientHeight || 525;
+
+      scene = new THREE.Scene();
+      scene.fog = new THREE.FogExp2(0x06080e, 0.003);
+
+      camera = new THREE.PerspectiveCamera(45, w / h, 1, 1000);
+      camera.position.set(0, 10, 135);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setSize(w, h);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      container3D.appendChild(renderer.domElement);
+
+      // OrbitControls for 360-degree mouse interaction (with defensive check)
+      if (typeof THREE !== "undefined" && THREE.OrbitControls) {
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.06;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.6;
+        controls.maxDistance = 250;
+        controls.minDistance = 30;
+      } else {
+        console.warn("THREE.OrbitControls not found, using fallback controls");
+        controls = { update: () => {}, target: { set: () => {} }, autoRotate: false };
+      }
+
+      scene.add(brainGroup);
+
+      // Subtle lighting for crisp depth
+      const ambLight = new THREE.AmbientLight(0xffffff, 0.25);
+      scene.add(ambLight);
+
+      // Handle Resize
+      window.addEventListener("resize", onWindowResize);
+
+      // Reset View Button
+      const btnReset = document.getElementById("btnResetView");
+      if (btnReset) {
+        btnReset.onclick = () => {
+          camera.position.set(0, 10, 135);
+          if (controls && controls.target) controls.target.set(0, 0, 0);
+          if (controls && controls.update) controls.update();
+        };
+      }
+    }
+
+    function onWindowResize() {
+      if (!renderer || !camera || !container3D) return;
+      const w = container3D.clientWidth;
+      const h = container3D.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    // Build 100% Complete Drosophila Connectome (139,248 Neurons) with Continuous Regional Shader
+    let wholeBrainPoints = null;
+    let synapticAttackFlash = 0.0;
+
+    // Live continuous target drives (smoothed exponentially in animate3D)
+    let targetDriveOptL = 0.0, liveOpticL = 0.0;
+    let targetDriveOptR = 0.0, liveOpticR = 0.0;
+    let targetDriveCX = 0.0, liveCX = 0.0;
+    let targetDriveKC = 0.0, liveKC = 0.0;
+    let targetDriveDN = 0.0, liveDN = 0.0;
+
+    // Mathematical biological excitation uniforms (Updated live from DOOM telemetry)
+    const brainUniforms = {
+      uOpticL: { value: 0.0 },
+      uOpticR: { value: 0.0 },
+      uCX: { value: 0.0 },
+      uKC: { value: 0.0 },
+      uDN: { value: 0.0 },
+      uWhole: { value: 0.23 },
+      uAttackFlash: { value: 0.0 }
+    };
+
+    const brainVertexShader = `
+      attribute vec3 color;
+      uniform float uOpticL;
+      uniform float uOpticR;
+      uniform float uCX;
+      uniform float uKC;
+      uniform float uDN;
+      uniform float uWhole;
+      uniform float uAttackFlash;
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec3 pos = position;
+
+        // Exact Continuous Anatomical Circuit Detectors (Zero If-Else!)
+        // 1. Optic Left (39,063 neurons)
+        float isOptL = clamp((color.g - 0.85) * 10.0, 0.0, 1.0) * clamp((0.15 - color.r) * 10.0, 0.0, 1.0);
+
+        // 2. Optic Right (38,478 neurons)
+        float isOptR = clamp((color.b - 0.90) * 15.0, 0.0, 1.0) * clamp((color.r - 0.15) * 10.0, 0.0, 1.0) * clamp((0.35 - color.r) * 10.0, 0.0, 1.0);
+
+        // 3. Central Complex Compass (2,875 neurons)
+        float isCX = clamp((color.b - 0.90) * 15.0, 0.0, 1.0) * clamp((color.r - 0.65) * 10.0, 0.0, 1.0) * clamp((0.65 - color.g) * 10.0, 0.0, 1.0);
+
+        // 4. Mushroom Body Memory (5,177 neurons)
+        float isKC = clamp((color.r - 0.88) * 10.0, 0.0, 1.0) * clamp((0.40 - color.g) * 10.0, 0.0, 1.0);
+
+        // 5. Descending Motor Pathway (1,303 neurons)
+        float isDN = clamp((color.g - 0.65) * 10.0, 0.0, 1.0) * clamp((0.15 - color.r) * 10.0, 0.0, 1.0) * clamp((0.60 - color.b) * 10.0, 0.0, 1.0);
+
+        // 6. Central Brain Interneurons (24,331 neurons)
+        float isCB = clamp((color.r - 0.90) * 10.0, 0.0, 1.0) * clamp((color.g - 0.65) * 10.0, 0.0, 1.0) * clamp((0.25 - color.b) * 10.0, 0.0, 1.0);
+
+        // High-contrast anatomical color tokens:
+        // Optic Left: Deep Royal Sapphire Blue (#0d61ff)
+        vec3 cOptL = vec3(0.05, 0.38, 1.00); 
+
+        // Optic Right: Vivid Radiant Ice Cyan (#00faff)
+        vec3 cOptR = vec3(0.00, 1.00, 0.92);
+
+        // Central Complex Compass: Cosmic Violet Purple (#b840ff)
+        vec3 cCX   = vec3(0.72, 0.25, 1.00);
+
+        // Mushroom Body Memory: Hot Rose Magenta Pink (#ff2685)
+        vec3 cKC   = vec3(1.00, 0.15, 0.52);
+
+        // Descending Motor Pathway: Pure Laser Lime Green (#14ff33)
+        vec3 cDN   = vec3(0.08, 1.00, 0.18);
+
+        // Central Brain Interneurons: Warm Golden Amber (#ffbf1a)
+        vec3 cCB   = vec3(1.00, 0.75, 0.10);
+
+        // Sensory & Projection Interneurons: Soft Steel Slate (#8c99ae)
+        vec3 cSens = vec3(0.52, 0.58, 0.68);
+
+        // Continuous composite base color per neuron:
+        float isKnown = clamp(isOptL + isOptR + isCX + isKC + isDN + isCB, 0.0, 1.0);
+        vec3 baseColor = (isOptL * cOptL) + 
+                         (isOptR * cOptR) + 
+                         (isCX   * cCX)   + 
+                         (isKC   * cKC)   + 
+                         (isDN   * cDN)   + 
+                         (isCB   * cCB)   + 
+                         ((1.0 - isKnown) * cSens);
+
+        // Dynamic regional excitation: Brightens and excites only the active region
+        float regBoost = 
+            (isOptL * uOpticL * 1.6) +
+            (isOptR * uOpticR * 1.6) +
+            (isCX   * uCX     * 1.8) +
+            (isKC   * uKC     * 1.4) +
+            (isDN   * uDN     * 2.2);
+
+        // Gunshot Action Potential Burst: Cascades through Central Complex down to Descending Motor
+        float attackPulse = (isDN * 2.4 + isCX * 1.2) * uAttackFlash;
+
+        // Active neurons radiate their own vivid wavelength
+        vec3 glow = baseColor * (regBoost + attackPulse);
+
+        // White-hot electrical core glint ONLY at peak firing discharges
+        vec3 coreGlint = vec3(1.0, 0.98, 0.92) * clamp(regBoost * 0.25 + attackPulse * 0.7 - 0.35, 0.0, 0.75);
+
+        vColor = min(vec3(1.0), baseColor * 0.85 + glow + coreGlint);
+
+        float totalActivity = regBoost + attackPulse;
+        vAlpha = clamp(0.42 + totalActivity * 0.35, 0.35, 0.95);
+
+        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+        gl_PointSize = (1.10 + clamp(totalActivity * 0.60, 0.0, 1.6)) * (140.0 / -mvPosition.z);
+        gl_Position = projectionMatrix * mvPosition;
+      }
+    `;
+
+    const brainFragmentShader = `
+      varying vec3 vColor;
+      varying float vAlpha;
+
+      void main() {
+        vec2 coord = gl_PointCoord - vec2(0.5);
+        float dist = length(coord);
+        if (dist > 0.5) discard;
+        float soft = smoothstep(0.5, 0.08, dist);
+        gl_FragColor = vec4(vColor, vAlpha * soft);
+      }
+    `;
+
+    function loadWholeConnectome139k() {
+      const ldr = document.getElementById("brain3DLoading");
+      Promise.all([
+        fetch("/brain_139k_pos.bin").then(r => {
+          if (!r.ok) throw new Error("Position binary fetch HTTP " + r.status);
+          return r.arrayBuffer();
+        }),
+        fetch("/brain_139k_col.bin").then(r => {
+          if (!r.ok) throw new Error("Color binary fetch HTTP " + r.status);
+          return r.arrayBuffer();
+        })
+      ]).then(([posBuf, colBuf]) => {
+        const positions = new Float32Array(posBuf);
+        const rawColors = new Uint8Array(colBuf);
+
+        // Convert Uint8 colors to normalized Float32 [0.0, 1.0] for the WebGL shader
+        const colorsF32 = new Float32Array(rawColors.length);
+        for (let i = 0; i < rawColors.length; i++) {
+          colorsF32[i] = rawColors[i] / 255.0;
+        }
+
+        const geom = new THREE.BufferGeometry();
+        geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+        geom.setAttribute("color", new THREE.BufferAttribute(colorsF32, 3));
+
+        const mat = new THREE.ShaderMaterial({
+          uniforms: brainUniforms,
+          vertexShader: brainVertexShader,
+          fragmentShader: brainFragmentShader,
+          transparent: true,
+          depthWrite: false,
+          blending: THREE.NormalBlending
+        });
+
+        wholeBrainPoints = new THREE.Points(geom, mat);
+        brainGroup.add(wholeBrainPoints);
+        console.log("Loaded all 139,248 FlyWire Drosophila neurons into 3D WebGL Shader!");
+
+        if (ldr) ldr.style.display = "none";
+
+      }).catch(err => {
+        console.error("Could not load 139k connectome binary", err);
+        if (ldr) {
+          ldr.innerText = "Connectome Load Failed: " + err.message;
+          ldr.style.color = "var(--accent-danger)";
+        }
+      });
+    }
+
+    // 3D Animation Render Loop (60 FPS WebGL)
+    function animate3D() {
+      requestAnimationFrame(animate3D);
+
+      if (controls && controls.update) {
+        if (controls.autoRotate !== undefined) {
+          controls.autoRotate = !isPaused;
+        }
+        controls.update();
+      }
+
+      // Smooth exponential biological interpolation towards dynamic drives
+      liveOpticL += (targetDriveOptL - liveOpticL) * 0.18;
+      liveOpticR += (targetDriveOptR - liveOpticR) * 0.18;
+      liveCX += (targetDriveCX - liveCX) * 0.18;
+      liveKC += (targetDriveKC - liveKC) * 0.18;
+      liveDN += (targetDriveDN - liveDN) * 0.18;
+
+      // Update shader uniforms live from smoothed telemetry
+      if (wholeBrainPoints && brainUniforms) {
+        brainUniforms.uOpticL.value = liveOpticL;
+        brainUniforms.uOpticR.value = liveOpticR;
+        brainUniforms.uCX.value = liveCX;
+        brainUniforms.uKC.value = liveKC;
+        brainUniforms.uDN.value = liveDN;
+        brainUniforms.uWhole.value = telemetry.whole_brain_firing || 0.23;
+        brainUniforms.uAttackFlash.value = synapticAttackFlash;
+
+        // Smooth decay for gunshot electrical flash
+        synapticAttackFlash *= 0.85;
+      }
+
+      if (renderer && scene && camera) {
+        renderer.render(scene, camera);
+      }
+    }
+
+    // Initialize 3D Engine & Load Connectome independently
+    try {
+      init3DScene();
+    } catch (err) {
+      console.error("init3DScene error:", err);
+    }
+
+    try {
+      loadWholeConnectome139k();
+    } catch (err) {
+      console.error("loadWholeConnectome139k error:", err);
+    }
+
+    try {
+      animate3D();
+    } catch (err) {
+      console.error("animate3D error:", err);
+    }
+
+    // ==========================================
+    // Live WebSocket Stream (ViZDoom + Telemetry)
+    // ==========================================
+    function connectWebSocket() {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = protocol + "//" + window.location.host + "/ws/game";
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        const cs = document.getElementById("connStatus");
+        if (cs) {
+          cs.innerHTML = '<div class="status-dot"></div><span>LIVE CONNECTOME</span>';
+          cs.style.color = 'var(--accent-emerald)';
+        }
+      };
+
+      ws.onclose = () => {
+        const cs = document.getElementById("connStatus");
+        if (cs) {
+          cs.innerHTML = '<div class="status-dot" style="background:var(--accent-danger); box-shadow:none;"></div><span>RECONNECTING...</span>';
+          cs.style.color = 'var(--accent-danger)';
+        }
+        setTimeout(connectWebSocket, 2000);
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        // Update DOOM image
+        if (data.frame_b64) {
+          doomCanvas.src = "data:image/jpeg;base64," + data.frame_b64;
+        }
+
+        // Sync Running / Paused State with server
+        if (data.is_running !== undefined) {
+          isPaused = !data.is_running;
+          const ppBtn = document.getElementById("btnPlayPause");
+          if (ppBtn) {
+            ppBtn.innerText = isPaused ? "▶️ RESUME" : "⏸️ PAUSE";
+            ppBtn.style.background = isPaused ? "var(--accent-amber)" : "";
+            ppBtn.style.color = isPaused ? "#000" : "";
+          }
+        }
+
+        // Update HUD
+        document.getElementById("stepCounter").innerText = "Step: " + (data.step || 0);
+        document.getElementById("hudHealth").innerText = data.health || 0;
+        document.getElementById("hudAmmo").innerText = data.ammo || 0;
+        document.getElementById("hudKills").innerText = data.kills || 0;
+        document.getElementById("hudScore").innerText = (data.total_reward || 0).toFixed(1);
+        const fpsEl = document.getElementById("fpsVal");
+        if (fpsEl) fpsEl.innerText = data.instant_fps || "0.0";
+
+        // Update Action Probabilities
+        let pLeft = 0, pRight = 0, pAtk = 0;
+        if (data.action_probs) {
+          pLeft = Math.round(((data.action_probs.TURN_LEFT !== undefined ? data.action_probs.TURN_LEFT : data.action_probs.MOVE_LEFT) || 0) * 100);
+          pRight = Math.round(((data.action_probs.TURN_RIGHT !== undefined ? data.action_probs.TURN_RIGHT : data.action_probs.MOVE_RIGHT) || 0) * 100);
+          pAtk = Math.round((data.action_probs.ATTACK || 0) * 100);
+
+          document.getElementById("barLeft").style.width = pLeft + "%";
+          document.getElementById("pctLeft").innerText = pLeft + "%";
+
+          document.getElementById("barRight").style.width = pRight + "%";
+          document.getElementById("pctRight").innerText = pRight + "%";
+
+          document.getElementById("barAttack").style.width = pAtk + "%";
+          document.getElementById("pctAttack").innerText = pAtk + "%";
+
+          // Target lock badge
+          const lockBadge = document.getElementById("targetLockBadge");
+          if (pAtk > 40) {
+            lockBadge.style.display = "block";
+          } else {
+            lockBadge.style.display = "none";
+          }
+        }
+
+        // Update Telemetry & 3D WebGL Shader directly from the 139,248-neuron Connectome Engine
+        if (data.telemetry) {
+          telemetry = data.telemetry;
+
+          const optL = telemetry.optic_left || 0;
+          const optR = telemetry.optic_right || 0;
+          const cx = telemetry.central_complex || 0;
+          const kc = telemetry.mushroom_body || 0;
+          const dnL = telemetry.descending_left || 0;
+          const dnR = telemetry.descending_right || 0;
+          const dnAvg = (dnL + dnR) / 2;
+          const whole = telemetry.whole_brain_firing || 0;
+
+          // Pure Biological Firing Rate Drives (Directly mapped from Connectome Engine on GPU)
+          // Baseline firing rate in Drosophila connectome is ~0.20; we map dynamic neural activity to visual excitation
+          targetDriveOptL = Math.max(0.0, (optL - 0.20) * 4.0);
+          targetDriveOptR = Math.max(0.0, (optR - 0.20) * 4.0);
+          targetDriveCX = Math.max(0.0, (cx - 0.18) * 4.5);
+          targetDriveKC = Math.max(0.0, (kc - 0.12) * 3.5);
+          targetDriveDN = Math.max(0.0, (dnAvg - 0.20) * 4.0);
+
+          // Action Potential discharge on gunshot attack
+          if (data.action_taken && data.action_taken.includes("ATTACK")) {
+            synapticAttackFlash = 1.0;
+          }
+
+          // Update Regional Numerical Gauges and Meters
+          document.getElementById("rateOpticL").innerText = optL.toFixed(2);
+          document.getElementById("meterOpticL").style.width = Math.min(100, optL * 100) + "%";
+
+          document.getElementById("rateOpticR").innerText = optR.toFixed(2);
+          document.getElementById("meterOpticR").style.width = Math.min(100, optR * 100) + "%";
+
+          document.getElementById("rateCX").innerText = cx.toFixed(2);
+          document.getElementById("meterCX").style.width = Math.min(100, cx * 100) + "%";
+
+          document.getElementById("rateKC").innerText = kc.toFixed(2);
+          document.getElementById("meterKC").style.width = Math.min(100, kc * 100) + "%";
+
+          document.getElementById("rateDN").innerText = dnAvg.toFixed(2);
+          document.getElementById("meterDN").style.width = Math.min(100, dnAvg * 100) + "%";
+
+          document.getElementById("rateWhole").innerText = whole.toFixed(2);
+          document.getElementById("meterWhole").style.width = Math.min(100, whole * 100) + "%";
+
+          // Light up Circuit Pipeline nodes dynamically from genuine neural firing
+          document.getElementById("pipeRetina").classList.toggle("active", true);
+          document.getElementById("pipeOptic").classList.toggle("active", (optL > 0.25 || optR > 0.25));
+          document.getElementById("pipeCompass").classList.toggle("active", (cx > 0.22));
+          document.getElementById("pipeMotor").classList.toggle("active", (dnAvg > 0.22));
+          document.getElementById("pipeAction").classList.toggle("active", (data.action_taken && data.action_taken.length > 0));
+        }
+      };
+    }
+
+    // Play / Pause Toggle
+    const playPauseBtn = document.getElementById("btnPlayPause");
+    if (playPauseBtn) {
+      playPauseBtn.onclick = () => {
+        isPaused = !isPaused;
+        playPauseBtn.innerText = isPaused ? "▶️ RESUME" : "⏸️ PAUSE";
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "toggle_pause" }));
+        }
+      };
+    }
+
+    // Speed Selector Buttons
+    document.querySelectorAll(".speed-btn").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".speed-btn").forEach(b => {
+          b.style.background = "rgba(255, 255, 255, 0.06)";
+          b.style.color = "var(--text-main)";
+        });
+        btn.style.background = "var(--accent-cyan)";
+        btn.style.color = "#000";
+        const spd = parseFloat(btn.dataset.speed);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "set_speed", speed: spd }));
+        }
+      };
+    });
+
+    // Connect WebSocket stream immediately (zero delay, fully decoupled)
+    connectWebSocket();
+  </script>
+</body>
+</html>
