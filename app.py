@@ -1,46 +1,57 @@
 ﻿"""
 DOOM-FlyWire Hugging Face Space Entry Point
 ============================================
-Gradio SDK mode: HF runs `python app.py` directly.
+Gradio SDK mode: HF runs `python app.py`.
 
 Architecture:
-  - FastAPI serves /, /ws, /static  (the actual DOOM + brain UI)
-  - Gradio is mounted at /gradio     (satisfies HF SDK healthcheck)
+  - spaces.GPU stub satisfies HF ZeroGPU detection at import time
+  - FastAPI (server.py) serves /, /ws/game, /static
+  - Gradio is mounted at /gradio for SDK healthcheck
+  - Agent is initialized LAZILY on first WebSocket connect (not at startup)
   - uvicorn serves the combined app on port 7860
-
-ZeroGPU: HF injects the `spaces` module in Gradio SDK containers.
-         @spaces.GPU on any function satisfies the startup check.
 """
+
+# spaces MUST be imported first — HF injects this module and registers
+# @spaces.GPU functions at import time for ZeroGPU detection.
+import spaces
 
 import os
 import gradio as gr
 import uvicorn
-from server import app as fastapi_app
 
 # ── ZeroGPU stub ──────────────────────────────────────────────────────────────
-# HF injects `spaces` automatically in Gradio SDK ZeroGPU containers.
-# We must NOT install it from PyPI — that overrides the injected version.
-import spaces
-
 @spaces.GPU
 def _gpu_ready():
-    """ZeroGPU activation stub — actual GPU work is in the connectome engine."""
-    return True
+    """
+    ZeroGPU activation stub.
+    Real GPU work happens in the connectome engine on WebSocket connect.
+    This function must exist and be reachable from a Gradio event for HF
+    ZeroGPU detection to pass.
+    """
+    import torch
+    return f"GPU available: {torch.cuda.is_available()}"
+
+
+# ── Import FastAPI game server (no startup side-effects) ──────────────────────
+from server import app as fastapi_app
+
 
 # ── Gradio shim ───────────────────────────────────────────────────────────────
 with gr.Blocks(title="DOOM-FlyWire Connectome") as demo:
     gr.Markdown(
-        "## 🧠 DOOM-FlyWire Connectome\n"
-        "The live visualizer is served at the root path. "
-        "[Open the demo](/)"
+        "## 🧠 DOOM-FlyWire: 139k-Neuron Connectome\n"
+        "The live DOOM + brain visualizer is at the **root path** — "
+        "[open it here](/)."
     )
-    run_btn = gr.Button("Activate GPU")
-    run_btn.click(fn=_gpu_ready, inputs=[], outputs=[])
+    with gr.Row():
+        gpu_btn = gr.Button("🚀 Test GPU", variant="primary")
+        gpu_out = gr.Textbox(label="GPU Status", interactive=False)
+    gpu_btn.click(fn=_gpu_ready, inputs=[], outputs=[gpu_out])
 
-# Mount Gradio under /gradio — FastAPI handles /, /ws, /static
+# Mount Gradio at /gradio; FastAPI handles everything else
 app = gr.mount_gradio_app(fastapi_app, demo, path="/gradio")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     print(f"[Hugging Face Space] Launching DOOM-FlyWire on 0.0.0.0:{port}...")
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
