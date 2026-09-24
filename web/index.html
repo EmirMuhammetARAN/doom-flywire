@@ -680,16 +680,16 @@
       renderer.setSize(w, h);
     }
 
-    // 100% Deterministic 7-Region Drosophila Connectome - Luminous Additive Hologram with Dynamic Action Surges
+    // 100% Deterministic 7-Region Drosophila Connectome - Pure Direct Model Readout (ZERO IF-ELSE!)
     const regionPoints = {};
 
-    // Dynamic biological event pulses (0.0 = calm sleek resting hologram, 1.0 = peak action potential flare)
-    let pulseOptL = 0.0;
-    let pulseOptR = 0.0;
-    let pulseCX   = 0.0;
-    let pulseKC   = 0.0;
-    let pulseDN   = 0.0;
-    let prevHealth = 100;
+    // Continuous 60fps tracking of the PyTorch FlyWire model firing rates
+    let targetOptL = 0.02, liveOptL = 0.02;
+    let targetOptR = 0.02, liveOptR = 0.02;
+    let targetCX   = 0.02, liveCX   = 0.02;
+    let targetKC   = 0.02, liveKC   = 0.02;
+    let targetDN   = 0.02, liveDN   = 0.02;
+    let targetWhole = 0.05, liveWhole = 0.05;
 
     // Helper: generate soft circular radial glow sprite for point particles
     function createGlowDotTexture() {
@@ -795,13 +795,13 @@
 
         // Finely tuned Additive Blending: Transparent, glowing holographic baseline (No white blowout!)
         const regionSpecs = [
-          { key: "opticL", color: 0x0d61ff, size: 0.75, opacity: 0.065, buf: buffers.opticL }, // Sapphire Blue
-          { key: "opticR", color: 0x00faff, size: 0.75, opacity: 0.065, buf: buffers.opticR }, // Ice Cyan
-          { key: "cx",     color: 0xb840ff, size: 1.25, opacity: 0.180, buf: buffers.cx },     // Cosmic Violet
-          { key: "kc",     color: 0xff2685, size: 1.15, opacity: 0.160, buf: buffers.kc },     // Magenta Pink
-          { key: "dn",     color: 0x14ff33, size: 1.35, opacity: 0.220, buf: buffers.dn },     // Laser Lime Green
-          { key: "cb",     color: 0xffbf1a, size: 0.65, opacity: 0.055, buf: buffers.cb },     // Warm Amber
-          { key: "in",     color: 0x475569, size: 0.50, opacity: 0.025, buf: buffers.in }      // Slate Scaffold
+          { key: "opticL", color: 0x0d61ff, size: 0.70, opacity: 0.05, buf: buffers.opticL }, // Sapphire Blue
+          { key: "opticR", color: 0x00faff, size: 0.70, opacity: 0.05, buf: buffers.opticR }, // Ice Cyan
+          { key: "cx",     color: 0xb840ff, size: 1.15, opacity: 0.12, buf: buffers.cx },     // Cosmic Violet
+          { key: "kc",     color: 0xff2685, size: 1.10, opacity: 0.12, buf: buffers.kc },     // Magenta Pink
+          { key: "dn",     color: 0x14ff33, size: 1.25, opacity: 0.15, buf: buffers.dn },     // Laser Lime Green
+          { key: "cb",     color: 0xffbf1a, size: 0.65, opacity: 0.05, buf: buffers.cb },     // Warm Amber
+          { key: "in",     color: 0x475569, size: 0.50, opacity: 0.02, buf: buffers.in }      // Slate Scaffold
         ];
 
         regionSpecs.forEach(spec => {
@@ -822,16 +822,16 @@
           regionPoints[spec.key] = pts;
         });
 
-        console.log("Loaded all 139,248 FlyWire neurons: Luminous additive hologram ready!");
+        console.log("Loaded all 139,248 FlyWire neurons: Pure direct model visualizer ready!");
         if (ldr) ldr.style.display = "none";
 
-        // Enable interactive click-to-pulse on region chips
+        // Enable interactive click-to-test on region chips
         const chipBinds = [
-          { id: "meterOpticL", trigger: () => { pulseOptL = 1.0; } },
-          { id: "meterOpticR", trigger: () => { pulseOptR = 1.0; } },
-          { id: "meterCX",     trigger: () => { pulseCX = 1.0; } },
-          { id: "meterKC",     trigger: () => { pulseKC = 1.0; } },
-          { id: "meterDN",     trigger: () => { pulseDN = 1.0; } }
+          { id: "meterOpticL", trigger: () => { targetOptL = 1.0; } },
+          { id: "meterOpticR", trigger: () => { targetOptR = 1.0; } },
+          { id: "meterCX",     trigger: () => { targetCX = 1.0; } },
+          { id: "meterKC",     trigger: () => { targetKC = 1.0; } },
+          { id: "meterDN",     trigger: () => { targetDN = 1.0; } }
         ];
         chipBinds.forEach(b => {
           const el = document.getElementById(b.id);
@@ -861,38 +861,38 @@
         controls.update();
       }
 
-      // Smooth biological synaptic decay (~500ms duration, highly visible action wave)
-      pulseOptL *= 0.95;
-      pulseOptR *= 0.95;
-      pulseCX   *= 0.94;
-      pulseKC   *= 0.94;
-      pulseDN   *= 0.92;
+      // Smooth 60fps exponential tracking of genuine PyTorch model activations
+      liveOptL += (targetOptL - liveOptL) * 0.25;
+      liveOptR += (targetOptR - liveOptR) * 0.25;
+      liveCX   += (targetCX   - liveCX)   * 0.25;
+      liveKC   += (targetKC   - liveKC)   * 0.25;
+      liveDN   += (targetDN   - liveDN)   * 0.25;
+      liveWhole += (targetWhole - liveWhole) * 0.20;
 
-      // Modulate particle size & opacity: Transparent rest hologram -> Radiant flare on event
+      // 3D Point Cloud Materials: Pure 1-to-1 analog readout of PyTorch model neurons (ZERO IF-ELSE!)
       if (regionPoints.opticL) {
-        regionPoints.opticL.material.size = 0.75 + pulseOptL * 0.95;
-        regionPoints.opticL.material.opacity = 0.065 + pulseOptL * 0.24;
+        regionPoints.opticL.material.size = 0.70 + liveOptL * 1.5;
+        regionPoints.opticL.material.opacity = 0.05 + liveOptL * 0.32;
       }
       if (regionPoints.opticR) {
-        regionPoints.opticR.material.size = 0.75 + pulseOptR * 0.95;
-        regionPoints.opticR.material.opacity = 0.065 + pulseOptR * 0.24;
+        regionPoints.opticR.material.size = 0.70 + liveOptR * 1.5;
+        regionPoints.opticR.material.opacity = 0.05 + liveOptR * 0.32;
       }
       if (regionPoints.cx) {
-        regionPoints.cx.material.size = 1.25 + pulseCX * 1.35;
-        regionPoints.cx.material.opacity = 0.180 + pulseCX * 0.32;
+        regionPoints.cx.material.size = 1.15 + liveCX * 1.6;
+        regionPoints.cx.material.opacity = 0.12 + liveCX * 0.35;
       }
       if (regionPoints.kc) {
-        regionPoints.kc.material.size = 1.15 + pulseKC * 1.25;
-        regionPoints.kc.material.opacity = 0.160 + pulseKC * 0.30;
+        regionPoints.kc.material.size = 1.10 + liveKC * 1.5;
+        regionPoints.kc.material.opacity = 0.12 + liveKC * 0.35;
       }
       if (regionPoints.dn) {
-        regionPoints.dn.material.size = 1.35 + pulseDN * 1.65;
-        regionPoints.dn.material.opacity = 0.220 + pulseDN * 0.38;
+        regionPoints.dn.material.size = 1.25 + liveDN * 1.8;
+        regionPoints.dn.material.opacity = 0.15 + liveDN * 0.40;
       }
       if (regionPoints.cb) {
-        const ripple = (pulseOptL + pulseOptR + pulseCX) * 0.33;
-        regionPoints.cb.material.size = 0.65 + ripple * 0.40;
-        regionPoints.cb.material.opacity = 0.055 + ripple * 0.12;
+        regionPoints.cb.material.size = 0.65 + liveWhole * 0.6;
+        regionPoints.cb.material.opacity = 0.05 + liveWhole * 0.12;
       }
 
       if (renderer && scene && camera) {
@@ -975,100 +975,45 @@
           document.getElementById("pctAttack").innerText = pAtk + "%";
         }
 
-        // Dynamic Multi-Circuit Event Activation & High-Dynamic-Range Live Gauges
-        let leftInput = 0, rightInput = 0;
-
-        // 1. Visual Perception Events (From ViZDoom Screen Perception)
-        if (data.visual_meta) {
-          const vm = data.visual_meta;
-          leftInput = vm.optic_left_input || 0;
-          rightInput = vm.optic_right_input || 0;
-
-          // Enemy detected in field of view
-          if (vm.has_target) {
-            pulseKC = Math.max(pulseKC, 0.70); // Tehdit / Hedef algısı (Mantar Cisimcik Pembe)
-            if (vm.target_offset < -0.10) {
-              pulseOptL = Math.max(pulseOptL, 0.95); // Düşman solda -> Sol göz Mavi parlar!
-            } else if (vm.target_offset > 0.10) {
-              pulseOptR = Math.max(pulseOptR, 0.95); // Düşman sağda -> Sağ göz Camgöbeği parlar!
-            } else {
-              pulseOptL = Math.max(pulseOptL, 0.80);
-              pulseOptR = Math.max(pulseOptR, 0.80);
-              pulseCX   = Math.max(pulseCX, 0.90);
-            }
-            if (vm.target_locked) {
-              pulseCX = 1.0; // Hedefe tam kilitlenme -> Merkezi Kompleks Mor zirvede!
-              pulseKC = Math.max(pulseKC, 0.90);
-            }
-          }
-        }
-
-        // 2. Action Events (Turning & Shooting)
-        if (data.action_taken && Array.isArray(data.action_taken)) {
-          if (data.action_taken.includes("TURN_LEFT")) {
-            pulseOptL = Math.max(pulseOptL, 1.0); // Sola dönüş -> Sol göz mavi parlar!
-            pulseCX   = Math.max(pulseCX, 0.95);  // Merkezi kompleks mor parlar!
-          }
-          if (data.action_taken.includes("TURN_RIGHT")) {
-            pulseOptR = Math.max(pulseOptR, 1.0); // Sağa dönüş -> Sağ göz camgöbeği parlar!
-            pulseCX   = Math.max(pulseCX, 0.95);  // Merkezi kompleks mor parlar!
-          }
-          if (data.action_taken.includes("ATTACK")) {
-            pulseDN   = 1.0;                       // Ateş etme -> İnen motor yeşil parlar!
-            pulseKC   = Math.max(pulseKC, 0.85);   // Mantar cisimcik pembe parlar!
-            pulseOptL = Math.max(pulseOptL, 0.75); // Namlu alevi iki gözü de aydınlatır
-            pulseOptR = Math.max(pulseOptR, 0.75);
-          }
-        }
-
-        // 3. Health & Damage Events
-        if (data.health !== undefined) {
-          if (data.health < prevHealth && prevHealth > 0) {
-            pulseKC = 1.0; // Hasar alındığında pembe flaş!
-          }
-          prevHealth = data.health;
-        }
-
-        // 4. Biological Connectome Telemetry & High-Dynamic-Range Live Indicators (0.05 to 0.98)
+        // Direct 1-to-1 Biological Readout from PyTorch Connectome (ZERO IF-ELSE!)
         if (data.telemetry) {
           telemetry = data.telemetry;
 
-          const pAtk = (data.action_probs && data.action_probs.ATTACK) || 0;
-          const pTurnL = (data.action_probs && (data.action_probs.TURN_LEFT || data.action_probs.MOVE_LEFT)) || 0;
-          const pTurnR = (data.action_probs && (data.action_probs.TURN_RIGHT || data.action_probs.MOVE_RIGHT)) || 0;
+          const optL = telemetry.optic_left || 0.02;
+          const optR = telemetry.optic_right || 0.02;
+          const cx   = telemetry.central_complex || 0.02;
+          const kc   = telemetry.mushroom_body || 0.02;
+          const dnL  = telemetry.descending_left || 0.02;
+          const dnR  = telemetry.descending_right || 0.02;
+          const dnAvg = (dnL + dnR) / 2;
+          const whole = telemetry.whole_brain_firing || 0.05;
 
-          // Compute genuine dynamic excitation levels across full 0.05 - 0.98 range:
-          const dynOptL = Math.min(0.98, Math.max(0.06, (leftInput / 8.0) * 0.7 + pTurnL * 0.3));
-          const dynOptR = Math.min(0.98, Math.max(0.06, (rightInput / 8.0) * 0.7 + pTurnR * 0.3));
-          const dynCX   = Math.min(0.98, Math.max(0.08, (pTurnL + pTurnR) * 0.65 + (data.visual_meta && data.visual_meta.target_locked ? 0.35 : 0.0)));
-          const dynKC   = Math.min(0.98, Math.max(0.06, (data.visual_meta && data.visual_meta.has_target ? 0.75 : 0.12) + (data.visual_meta && data.visual_meta.target_locked ? 0.23 : 0.0)));
-          const dynDN   = Math.min(0.98, Math.max(0.06, pAtk * 0.88 + (pTurnL + pTurnR) * 0.12));
-          const dynWhole = Math.min(0.98, Math.max(0.10, (dynOptL + dynOptR + dynCX + dynDN) / 4.0));
+          // Target values for continuous 60fps 3D shader tracking
+          targetOptL = optL;
+          targetOptR = optR;
+          targetCX   = cx;
+          targetKC   = kc;
+          targetDN   = dnAvg;
+          targetWhole = whole;
 
-          // Also boost pulses from dynamic spikes
-          if (dynOptL > 0.4) pulseOptL = Math.max(pulseOptL, dynOptL);
-          if (dynOptR > 0.4) pulseOptR = Math.max(pulseOptR, dynOptR);
-          if (dynCX > 0.4)   pulseCX   = Math.max(pulseCX, dynCX);
-          if (dynDN > 0.4)   pulseDN   = Math.max(pulseDN, dynDN);
+          // Update Regional Numerical Gauges and Progress Bars directly from model
+          document.getElementById("rateOpticL").innerText = optL.toFixed(2);
+          document.getElementById("meterOpticL").style.width = Math.round(Math.min(1.0, optL) * 100) + "%";
 
-          // Update Regional Numerical Gauges and Progress Bars with active, lively values!
-          document.getElementById("rateOpticL").innerText = dynOptL.toFixed(2);
-          document.getElementById("meterOpticL").style.width = Math.round(dynOptL * 100) + "%";
+          document.getElementById("rateOpticR").innerText = optR.toFixed(2);
+          document.getElementById("meterOpticR").style.width = Math.round(Math.min(1.0, optR) * 100) + "%";
 
-          document.getElementById("rateOpticR").innerText = dynOptR.toFixed(2);
-          document.getElementById("meterOpticR").style.width = Math.round(dynOptR * 100) + "%";
+          document.getElementById("rateCX").innerText = cx.toFixed(2);
+          document.getElementById("meterCX").style.width = Math.round(Math.min(1.0, cx) * 100) + "%";
 
-          document.getElementById("rateCX").innerText = dynCX.toFixed(2);
-          document.getElementById("meterCX").style.width = Math.round(dynCX * 100) + "%";
+          document.getElementById("rateKC").innerText = kc.toFixed(2);
+          document.getElementById("meterKC").style.width = Math.round(Math.min(1.0, kc) * 100) + "%";
 
-          document.getElementById("rateKC").innerText = dynKC.toFixed(2);
-          document.getElementById("meterKC").style.width = Math.round(dynKC * 100) + "%";
+          document.getElementById("rateDN").innerText = dnAvg.toFixed(2);
+          document.getElementById("meterDN").style.width = Math.round(Math.min(1.0, dnAvg) * 100) + "%";
 
-          document.getElementById("rateDN").innerText = dynDN.toFixed(2);
-          document.getElementById("meterDN").style.width = Math.round(dynDN * 100) + "%";
-
-          document.getElementById("rateWhole").innerText = dynWhole.toFixed(2);
-          document.getElementById("meterWhole").style.width = Math.round(dynWhole * 100) + "%";
+          document.getElementById("rateWhole").innerText = whole.toFixed(2);
+          document.getElementById("meterWhole").style.width = Math.round(Math.min(1.0, whole) * 100) + "%";
 
           // Light up Circuit Pipeline nodes dynamically from genuine neural firing
           document.getElementById("pipeRetina").classList.toggle("active", true);
