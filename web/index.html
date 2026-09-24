@@ -680,18 +680,19 @@
       renderer.setSize(w, h);
     }
 
-    // 100% Deterministic 7-Region Drosophila Connectome with Native Glowing Additive Particles
+    // 100% Deterministic 7-Region Drosophila Connectome - Sleek Dark Resting State with Event Pulses
     const regionPoints = {};
 
-    // Live continuous target drives (smoothed exponentially in animate3D)
-    let targetDriveOptL = 0.0, liveOpticL = 0.0;
-    let targetDriveOptR = 0.0, liveOpticR = 0.0;
-    let targetDriveCX   = 0.0, liveCX     = 0.0;
-    let targetDriveKC   = 0.0, liveKC     = 0.0;
-    let targetDriveDN   = 0.0, liveDN     = 0.0;
-    let targetDriveWhole = 0.23, liveWhole = 0.23;
+    // Dynamic biological event pulses (0.0 = calm sleek resting state, 1.0 = peak action potential spike)
+    let pulseOptL = 0.0;
+    let pulseOptR = 0.0;
+    let pulseCX   = 0.0;
+    let pulseKC   = 0.0;
+    let pulseDN   = 0.0;
+    let prevHealth = 100;
+    let prevOptL = 0.15, prevOptR = 0.15;
 
-    // Helper: generate soft circular radial glow sprite for point particles
+    // Helper: generate soft circular sprite for crisp, anti-aliased non-blown-out particles
     function createGlowDotTexture() {
       const canvas = document.createElement("canvas");
       canvas.width = 64;
@@ -699,9 +700,9 @@
       const ctx = canvas.getContext("2d");
       const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
       gradient.addColorStop(0.0, "rgba(255, 255, 255, 1.0)");
-      gradient.addColorStop(0.2, "rgba(255, 255, 255, 0.85)");
-      gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.35)");
-      gradient.addColorStop(0.8, "rgba(255, 255, 255, 0.08)");
+      gradient.addColorStop(0.25, "rgba(255, 255, 255, 0.85)");
+      gradient.addColorStop(0.60, "rgba(255, 255, 255, 0.30)");
+      gradient.addColorStop(0.85, "rgba(255, 255, 255, 0.06)");
       gradient.addColorStop(1.0, "rgba(255, 255, 255, 0.0)");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, 64, 64);
@@ -793,15 +794,15 @@
 
         const glowTex = createGlowDotTexture();
 
-        // Authentic circuit configurations matching UI legend exactly
+        // Authentic circuit configurations - Sleek, calm resting baseline (No blinding neon wash!)
         const regionSpecs = [
-          { key: "opticL", color: 0x0d61ff, size: 1.5, opacity: 0.70, buf: buffers.opticL }, // Blue
-          { key: "opticR", color: 0x00faff, size: 1.5, opacity: 0.70, buf: buffers.opticR }, // Cyan
-          { key: "cx",     color: 0xb840ff, size: 2.2, opacity: 0.90, buf: buffers.cx },     // Purple
-          { key: "kc",     color: 0xff2685, size: 2.0, opacity: 0.85, buf: buffers.kc },     // Pink
-          { key: "dn",     color: 0x14ff33, size: 2.5, opacity: 0.95, buf: buffers.dn },     // Green
-          { key: "cb",     color: 0xffbf1a, size: 1.3, opacity: 0.55, buf: buffers.cb },     // Amber
-          { key: "in",     color: 0x475569, size: 1.1, opacity: 0.25, buf: buffers.in }      // Slate
+          { key: "opticL", color: 0x0d61ff, size: 0.55, opacity: 0.28, buf: buffers.opticL }, // Blue
+          { key: "opticR", color: 0x00faff, size: 0.55, opacity: 0.28, buf: buffers.opticR }, // Cyan
+          { key: "cx",     color: 0xb840ff, size: 0.85, opacity: 0.45, buf: buffers.cx },     // Purple
+          { key: "kc",     color: 0xff2685, size: 0.80, opacity: 0.45, buf: buffers.kc },     // Pink
+          { key: "dn",     color: 0x14ff33, size: 0.90, opacity: 0.50, buf: buffers.dn },     // Green
+          { key: "cb",     color: 0xffbf1a, size: 0.50, opacity: 0.22, buf: buffers.cb },     // Amber
+          { key: "in",     color: 0x475569, size: 0.42, opacity: 0.12, buf: buffers.in }      // Slate
         ];
 
         regionSpecs.forEach(spec => {
@@ -813,7 +814,7 @@
             map: glowTex,
             transparent: true,
             opacity: spec.opacity,
-            blending: THREE.AdditiveBlending,
+            blending: THREE.NormalBlending,
             depthWrite: false,
             sizeAttenuation: true
           });
@@ -822,8 +823,24 @@
           regionPoints[spec.key] = pts;
         });
 
-        console.log("Loaded all 139,248 FlyWire Drosophila neurons into 7 glowing circuits with exact UI palette matching!");
+        console.log("Loaded all 139,248 FlyWire neurons: Sleek dark connectome with event pulses ready!");
         if (ldr) ldr.style.display = "none";
+
+        // Enable interactive click-to-pulse on region chips
+        const chipBinds = [
+          { id: "meterOpticL", trigger: () => { pulseOptL = 1.0; } },
+          { id: "meterOpticR", trigger: () => { pulseOptR = 1.0; } },
+          { id: "meterCX",     trigger: () => { pulseCX = 1.0; } },
+          { id: "meterKC",     trigger: () => { pulseKC = 1.0; } },
+          { id: "meterDN",     trigger: () => { pulseDN = 1.0; } }
+        ];
+        chipBinds.forEach(b => {
+          const el = document.getElementById(b.id);
+          if (el && el.parentElement && el.parentElement.parentElement) {
+            el.parentElement.parentElement.style.cursor = "pointer";
+            el.parentElement.parentElement.onclick = b.trigger;
+          }
+        });
 
       }).catch(err => {
         console.error("Could not load 139k connectome binary", err);
@@ -845,38 +862,38 @@
         controls.update();
       }
 
-      // Smooth interpolation for fluid biological excitation pulses
-      liveOpticL += (targetDriveOptL - liveOpticL) * 0.25;
-      liveOpticR += (targetDriveOptR - liveOpticR) * 0.25;
-      liveCX     += (targetDriveCX     - liveCX)     * 0.25;
-      liveKC     += (targetDriveKC     - liveKC)     * 0.25;
-      liveDN     += (targetDriveDN     - liveDN)     * 0.30;
-      liveWhole  += (targetDriveWhole  - liveWhole)  * 0.20;
+      // Smooth exponential synaptic decay for event pulses (action potentials fade in ~300-400ms)
+      pulseOptL *= 0.92;
+      pulseOptR *= 0.92;
+      pulseCX   *= 0.90;
+      pulseKC   *= 0.90;
+      pulseDN   *= 0.87;
 
-      // Modulate glowing particle sizes and opacities live from neural firing rates
+      // Modulate particle size & opacity: Sleek dark rest state -> Vivid bright event flash
       if (regionPoints.opticL) {
-        regionPoints.opticL.material.size = 1.4 + liveOpticL * 1.8;
-        regionPoints.opticL.material.opacity = Math.min(1.0, 0.65 + liveOpticL * 0.35);
+        regionPoints.opticL.material.size = 0.55 + pulseOptL * 0.75;
+        regionPoints.opticL.material.opacity = 0.28 + pulseOptL * 0.55;
       }
       if (regionPoints.opticR) {
-        regionPoints.opticR.material.size = 1.4 + liveOpticR * 1.8;
-        regionPoints.opticR.material.opacity = Math.min(1.0, 0.65 + liveOpticR * 0.35);
+        regionPoints.opticR.material.size = 0.55 + pulseOptR * 0.75;
+        regionPoints.opticR.material.opacity = 0.28 + pulseOptR * 0.55;
       }
       if (regionPoints.cx) {
-        regionPoints.cx.material.size = 2.0 + liveCX * 2.4;
-        regionPoints.cx.material.opacity = Math.min(1.0, 0.80 + liveCX * 0.20);
+        regionPoints.cx.material.size = 0.85 + pulseCX * 1.15;
+        regionPoints.cx.material.opacity = 0.45 + pulseCX * 0.50;
       }
       if (regionPoints.kc) {
-        regionPoints.kc.material.size = 1.8 + liveKC * 2.2;
-        regionPoints.kc.material.opacity = Math.min(1.0, 0.75 + liveKC * 0.25);
+        regionPoints.kc.material.size = 0.80 + pulseKC * 1.05;
+        regionPoints.kc.material.opacity = 0.45 + pulseKC * 0.50;
       }
       if (regionPoints.dn) {
-        regionPoints.dn.material.size = 2.4 + liveDN * 3.0;
-        regionPoints.dn.material.opacity = Math.min(1.0, 0.85 + liveDN * 0.15);
+        regionPoints.dn.material.size = 0.90 + pulseDN * 1.50;
+        regionPoints.dn.material.opacity = 0.50 + pulseDN * 0.50;
       }
       if (regionPoints.cb) {
-        regionPoints.cb.material.size = 1.2 + liveWhole * 0.9;
-        regionPoints.cb.material.opacity = Math.min(0.9, 0.50 + liveWhole * 0.35);
+        const ripple = (pulseOptL + pulseOptR + pulseCX) * 0.33;
+        regionPoints.cb.material.size = 0.50 + ripple * 0.25;
+        regionPoints.cb.material.opacity = 0.22 + ripple * 0.18;
       }
 
       if (renderer && scene && camera) {
@@ -959,31 +976,78 @@
           document.getElementById("pctAttack").innerText = pAtk + "%";
         }
 
-        // Update Telemetry & 3D WebGL Shader directly from the 139,248-neuron Connectome Engine
+        // Update Telemetry & Biological Event Pulses directly from DOOM gameplay & connectome
         if (data.telemetry) {
           telemetry = data.telemetry;
 
           const optL = telemetry.optic_left || 0;
           const optR = telemetry.optic_right || 0;
-          const cx = telemetry.central_complex || 0;
-          const kc = telemetry.mushroom_body || 0;
-          const dnL = telemetry.descending_left || 0;
-          const dnR = telemetry.descending_right || 0;
+          const cx   = telemetry.central_complex || 0;
+          const kc   = telemetry.mushroom_body || 0;
+          const dnL  = telemetry.descending_left || 0;
+          const dnR  = telemetry.descending_right || 0;
           const dnAvg = (dnL + dnR) / 2;
           const whole = telemetry.whole_brain_firing || 0;
 
-          // Responsive dynamic biological excitation drives
-          targetDriveOptL = optL * 3.5;
-          targetDriveOptR = optR * 3.5;
-          targetDriveCX   = cx * 3.5;
-          targetDriveKC   = kc * 3.2;
-          targetDriveDN   = dnAvg * 4.0;
-          targetDriveWhole = whole * 2.0;
+          // 1. Damage Event: Player takes damage -> Mushroom Body threat response
+          if (data.health !== undefined) {
+            if (data.health < prevHealth && prevHealth > 0) {
+              pulseKC = 1.0;
+            }
+            prevHealth = data.health;
+          }
 
-          // Action Potential discharge on gunshot attack boosts Descending Motor & Central Complex
+          // 2. Action Event: Gunshot fired -> Descending Motor spikes with peak action potential!
           if (data.action_taken && data.action_taken.includes("ATTACK")) {
-            targetDriveDN = Math.max(targetDriveDN, 2.5);
-            targetDriveCX = Math.max(targetDriveCX, 2.0);
+            pulseDN = 1.0;
+            pulseCX = Math.max(pulseCX, 0.7);
+          }
+
+          // 3. Navigation Event: Steering left or right -> Central Complex heading adjustment
+          let isTurning = false;
+          if (data.action_probs) {
+            const pL = data.action_probs.TURN_LEFT || data.action_probs.MOVE_LEFT || 0;
+            const pR = data.action_probs.TURN_RIGHT || data.action_probs.MOVE_RIGHT || 0;
+            if (pL > 0.35 || pR > 0.35) {
+              isTurning = true;
+            }
+          }
+
+          // 4. Visual Events: Pulse on optical surge above idle baseline (~0.18) or sudden shift
+          const dOptL = optL - 0.18;
+          if (dOptL > 0.04) {
+            pulseOptL = Math.max(pulseOptL, Math.min(1.0, dOptL * 3.5));
+          }
+          if (Math.abs(optL - prevOptL) > 0.04) {
+            pulseOptL = Math.max(pulseOptL, 0.6);
+          }
+          prevOptL = optL;
+
+          const dOptR = optR - 0.18;
+          if (dOptR > 0.04) {
+            pulseOptR = Math.max(pulseOptR, Math.min(1.0, dOptR * 3.5));
+          }
+          if (Math.abs(optR - prevOptR) > 0.04) {
+            pulseOptR = Math.max(pulseOptR, 0.6);
+          }
+          prevOptR = optR;
+
+          // Central Complex event (steering / heading vectors)
+          const dCX = cx - 0.16;
+          if (dCX > 0.04 || isTurning) {
+            pulseCX = Math.max(pulseCX, Math.min(1.0, (dCX > 0 ? dCX * 3.0 : 0) + (isTurning ? 0.65 : 0)));
+          }
+
+          // Mushroom Body event
+          const dKC = kc - 0.14;
+          if (dKC > 0.04) {
+            pulseKC = Math.max(pulseKC, Math.min(1.0, dKC * 3.0));
+          }
+
+          // Descending Motor event (locomotion / attack)
+          const dDN = dnAvg - 0.18;
+          if (dDN > 0.04) {
+            pulseDN = Math.max(pulseDN, Math.min(1.0, dDN * 3.0));
           }
 
           // Update Regional Numerical Gauges and Meters
