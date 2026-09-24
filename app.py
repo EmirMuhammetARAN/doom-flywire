@@ -23,8 +23,13 @@ try:
 except Exception:
     pass
 
-# spaces MUST be imported first: HF detects @spaces.GPU at import time
-import spaces
+# Support both ZeroGPU and standard CPU environments
+try:
+    import spaces
+    _gpu_decorator = spaces.GPU
+except Exception:
+    spaces = None
+    def _gpu_decorator(fn): return fn
 
 import asyncio
 import json
@@ -38,7 +43,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect
 
 # ── ZeroGPU stub ──────────────────────────────────────────────────────────────
 # HF detects @spaces.GPU at scan/import time. No UI elements required.
-@spaces.GPU
+@_gpu_decorator
 def _gpu_ready():
     import torch
     return torch.cuda.is_available()
@@ -84,12 +89,12 @@ def _get_agent():
         try:
             import torch
             from src.doom_agent import DoomConnectomeAgent
-            device = "cuda" if torch.cuda.is_available() else "cpu"
-            print(f"[Agent] Lazy-init on {device}...")
+            # Run on CPU for smooth, continuous live streaming without ZeroGPU quota limits or emulation traps
+            print("[Agent] Initializing DoomConnectomeAgent on cpu...")
             _agent = DoomConnectomeAgent(
                 scenario_name="defend_the_center.cfg",
                 window_visible=False,
-                device=device,
+                device="cpu",
             )
             print("[Agent] Ready.")
             return _agent
