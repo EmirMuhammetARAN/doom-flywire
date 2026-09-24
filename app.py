@@ -116,7 +116,12 @@ def _patched_create_app(*args, **kwargs):
     def _serve(rel, media=""):
         f = os.path.join(WEB_DIR, rel) if rel else None
         if f and os.path.exists(f):
-            return FileResponse(f, media_type=media) if media else FileResponse(f)
+            headers = {
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+            return FileResponse(f, media_type=media, headers=headers) if media else FileResponse(f, headers=headers)
         return JSONResponse({"error": f"{rel} not found"}, status_code=404)
 
     async def doom_page(request): return _serve("index.html")

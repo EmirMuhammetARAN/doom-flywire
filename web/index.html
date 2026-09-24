@@ -680,90 +680,35 @@
       renderer.setSize(w, h);
     }
 
-    // Build 100% Complete Drosophila Connectome (139,248 Neurons) with Continuous Regional Shader
-    let wholeBrainPoints = null;
-    let synapticAttackFlash = 0.0;
+    // 100% Deterministic 7-Region Drosophila Connectome with Native Glowing Additive Particles
+    const regionPoints = {};
 
     // Live continuous target drives (smoothed exponentially in animate3D)
     let targetDriveOptL = 0.0, liveOpticL = 0.0;
     let targetDriveOptR = 0.0, liveOpticR = 0.0;
-    let targetDriveCX = 0.0, liveCX = 0.0;
-    let targetDriveKC = 0.0, liveKC = 0.0;
-    let targetDriveDN = 0.0, liveDN = 0.0;
+    let targetDriveCX   = 0.0, liveCX     = 0.0;
+    let targetDriveKC   = 0.0, liveKC     = 0.0;
+    let targetDriveDN   = 0.0, liveDN     = 0.0;
+    let targetDriveWhole = 0.23, liveWhole = 0.23;
 
-    // Mathematical biological excitation uniforms (Updated live from DOOM telemetry)
-    const brainUniforms = {
-      uOpticL: { value: 0.0 },
-      uOpticR: { value: 0.0 },
-      uCX: { value: 0.0 },
-      uKC: { value: 0.0 },
-      uDN: { value: 0.0 },
-      uWhole: { value: 0.23 }
-    };
-
-    const brainVertexShader = `
-      attribute vec3 color;
-      attribute float aRegion;
-      uniform float uOpticL;
-      uniform float uOpticR;
-      uniform float uCX;
-      uniform float uKC;
-      uniform float uDN;
-      uniform float uWhole;
-      varying vec3 vColor;
-      varying float vAlpha;
-
-      void main() {
-        vec3 pos = position;
-
-        // Exact deterministic region identification:
-        // 1.0: Optic Left (#0d61ff)
-        // 2.0: Optic Right (#00faff)
-        // 3.0: Central Complex (#b840ff)
-        // 4.0: Mushroom Body (#ff2685)
-        // 5.0: Descending Motor (#14ff33)
-        // 6.0: Central Brain (#ffbf1a)
-        float isOptL = abs(aRegion - 1.0) < 0.5 ? 1.0 : 0.0;
-        float isOptR = abs(aRegion - 2.0) < 0.5 ? 1.0 : 0.0;
-        float isCX   = abs(aRegion - 3.0) < 0.5 ? 1.0 : 0.0;
-        float isKC   = abs(aRegion - 4.0) < 0.5 ? 1.0 : 0.0;
-        float isDN   = abs(aRegion - 5.0) < 0.5 ? 1.0 : 0.0;
-        float isCB   = abs(aRegion - 6.0) < 0.5 ? 1.0 : 0.0;
-
-        // Dynamic regional excitation mapped directly from DOOM-FlyWire neural activity
-        float regBoost = 
-            (isOptL * uOpticL * 2.4) +
-            (isOptR * uOpticR * 2.4) +
-            (isCX   * uCX     * 2.4) +
-            (isKC   * uKC     * 2.0) +
-            (isDN   * uDN     * 2.8) +
-            (isCB   * uWhole  * 1.2);
-
-        // Radiant excitation in each region's vivid authentic hue (no white washout!)
-        vec3 activeColor = color * (1.0 + regBoost * 1.7);
-        vColor = min(vec3(1.2), activeColor);
-
-        float totalActivity = regBoost;
-        vAlpha = clamp(0.50 + totalActivity * 0.45, 0.40, 1.0);
-
-        vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-        gl_PointSize = (1.25 + clamp(totalActivity * 0.85, 0.0, 2.2)) * (150.0 / -mvPosition.z);
-        gl_Position = projectionMatrix * mvPosition;
-      }
-    `;
-
-    const brainFragmentShader = `
-      varying vec3 vColor;
-      varying float vAlpha;
-
-      void main() {
-        vec2 coord = gl_PointCoord - vec2(0.5);
-        float dist = length(coord);
-        if (dist > 0.5) discard;
-        float soft = smoothstep(0.5, 0.06, dist);
-        gl_FragColor = vec4(vColor, vAlpha * soft);
-      }
-    `;
+    // Helper: generate soft circular radial glow sprite for point particles
+    function createGlowDotTexture() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 64;
+      canvas.height = 64;
+      const ctx = canvas.getContext("2d");
+      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0.0, "rgba(255, 255, 255, 1.0)");
+      gradient.addColorStop(0.2, "rgba(255, 255, 255, 0.85)");
+      gradient.addColorStop(0.5, "rgba(255, 255, 255, 0.35)");
+      gradient.addColorStop(0.8, "rgba(255, 255, 255, 0.08)");
+      gradient.addColorStop(1.0, "rgba(255, 255, 255, 0.0)");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 64, 64);
+      const texture = new THREE.Texture(canvas);
+      texture.needsUpdate = true;
+      return texture;
+    }
 
     function loadWholeConnectome139k() {
       const ldr = document.getElementById("brain3DLoading");
@@ -781,70 +726,103 @@
         const rawColors = new Uint8Array(colBuf);
         const nPoints = Math.floor(positions.length / 3);
 
-        const colorsF32 = new Float32Array(nPoints * 3);
-        const regionF32 = new Float32Array(nPoints);
+        // Pre-allocate typed arrays for all 7 anatomical circuits
+        const counts = {
+          opticL: 39063,
+          opticR: 38478,
+          cx: 2875,
+          kc: 5177,
+          dn: 1303,
+          cb: 24331,
+          in: 28021
+        };
 
-        // Deterministic anatomical classification matching legend indicators exactly
+        const buffers = {
+          opticL: new Float32Array(counts.opticL * 3),
+          opticR: new Float32Array(counts.opticR * 3),
+          cx:     new Float32Array(counts.cx * 3),
+          kc:     new Float32Array(counts.kc * 3),
+          dn:     new Float32Array(counts.dn * 3),
+          cb:     new Float32Array(counts.cb * 3),
+          in:     new Float32Array(counts.in * 3)
+        };
+
+        const ptrs = { opticL: 0, opticR: 0, cx: 0, kc: 0, dn: 0, cb: 0, in: 0 };
+
         for (let i = 0; i < nPoints; i++) {
-          const r = rawColors[i * 3];
-          const g = rawColors[i * 3 + 1];
-          const b = rawColors[i * 3 + 2];
+          const p = i * 3;
+          const x = positions[p], y = positions[p + 1], z = positions[p + 2];
+          const r = rawColors[p], g = rawColors[p + 1], b = rawColors[p + 2];
 
-          let cr, cg, cb, reg;
-
-          // 1. Optic Left: Deep Sapphire Blue #0d61ff (Legend: #0d61ff)
-          if (r < 20 && g > 230 && b > 200) {
-            cr = 0.05; cg = 0.38; cb = 1.00; reg = 1.0;
+          let buf, key;
+          // 1. Optic Left: Sapphire Blue #0d61ff (RGB 0, 245, 212 in source binary)
+          if (r === 0 && g === 245 && b === 212) {
+            buf = buffers.opticL; key = "opticL";
           }
-          // 2. Optic Right: Vivid Ice Cyan #00faff (Legend: #00faff)
-          else if (r > 40 && r < 70 && g > 170 && b > 230) {
-            cr = 0.00; cg = 0.98; cb = 1.00; reg = 2.0;
+          // 2. Optic Right: Ice Cyan #00faff (RGB 56, 189, 248 in source binary)
+          else if (r === 56 && g === 189 && b === 248) {
+            buf = buffers.opticR; key = "opticR";
           }
-          // 3. Central Complex: Cosmic Violet #b840ff (Legend: #b840ff)
-          else if (r > 170 && r < 210 && g > 110 && g < 150 && b > 235) {
-            cr = 0.72; cg = 0.25; cb = 1.00; reg = 3.0;
+          // 3. Central Complex: Cosmic Violet #b840ff (RGB 192, 132, 252 in source binary)
+          else if (r === 192 && g === 132 && b === 252) {
+            buf = buffers.cx; key = "cx";
           }
-          // 4. Mushroom Body (Kenyon Cells): Hot Rose Magenta #ff2685 (Legend: #ff2685)
-          else if (r > 230 && g < 80 && b < 110) {
-            cr = 1.00; cg = 0.15; cb = 0.52; reg = 4.0;
+          // 4. Mushroom Body: Hot Magenta Pink #ff2685 (RGB 244, 63, 94 in source binary)
+          else if (r === 244 && g === 63 && b === 94) {
+            buf = buffers.kc; key = "kc";
           }
-          // 5. Descending Motor Pathway: Laser Lime Green #14ff33 (Legend: #14ff33)
-          else if (r < 30 && g > 170 && g < 200 && b > 115 && b < 145) {
-            cr = 0.08; cg = 1.00; cb = 0.20; reg = 5.0;
+          // 5. Descending Motor: Laser Lime Green #14ff33 (RGB 16, 185, 129 in source binary)
+          else if (r === 16 && g === 185 && b === 129) {
+            buf = buffers.dn; key = "dn";
           }
-          // 6. Central Brain Interneurons: Warm Golden Amber #ffbf1a (Legend: #ffbf1a)
-          else if (r > 235 && g > 175 && b < 50) {
-            cr = 1.00; cg = 0.75; cb = 0.10; reg = 6.0;
+          // 6. Central Brain: Golden Amber #ffbf1a (RGB 251, 191, 36 in source binary)
+          else if (r === 251 && g === 191 && b === 36) {
+            buf = buffers.cb; key = "cb";
           }
-          // 7. General Interneurons: Deep Muted Slate #475569
+          // 7. Structural Interneurons: Deep Muted Slate #475569
           else {
-            cr = 0.28; cg = 0.33; cb = 0.41; reg = 0.0;
+            buf = buffers.in; key = "in";
           }
 
-          colorsF32[i * 3]     = cr;
-          colorsF32[i * 3 + 1] = cg;
-          colorsF32[i * 3 + 2] = cb;
-          regionF32[i]         = reg;
+          const offset = ptrs[key];
+          buf[offset]     = x;
+          buf[offset + 1] = y;
+          buf[offset + 2] = z;
+          ptrs[key] += 3;
         }
 
-        const geom = new THREE.BufferGeometry();
-        geom.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-        geom.setAttribute("color", new THREE.BufferAttribute(colorsF32, 3));
-        geom.setAttribute("aRegion", new THREE.BufferAttribute(regionF32, 1));
+        const glowTex = createGlowDotTexture();
 
-        const mat = new THREE.ShaderMaterial({
-          uniforms: brainUniforms,
-          vertexShader: brainVertexShader,
-          fragmentShader: brainFragmentShader,
-          transparent: true,
-          depthWrite: false,
-          blending: THREE.NormalBlending
+        // Authentic circuit configurations matching UI legend exactly
+        const regionSpecs = [
+          { key: "opticL", color: 0x0d61ff, size: 1.5, opacity: 0.70, buf: buffers.opticL }, // Blue
+          { key: "opticR", color: 0x00faff, size: 1.5, opacity: 0.70, buf: buffers.opticR }, // Cyan
+          { key: "cx",     color: 0xb840ff, size: 2.2, opacity: 0.90, buf: buffers.cx },     // Purple
+          { key: "kc",     color: 0xff2685, size: 2.0, opacity: 0.85, buf: buffers.kc },     // Pink
+          { key: "dn",     color: 0x14ff33, size: 2.5, opacity: 0.95, buf: buffers.dn },     // Green
+          { key: "cb",     color: 0xffbf1a, size: 1.3, opacity: 0.55, buf: buffers.cb },     // Amber
+          { key: "in",     color: 0x475569, size: 1.1, opacity: 0.25, buf: buffers.in }      // Slate
+        ];
+
+        regionSpecs.forEach(spec => {
+          const geom = new THREE.BufferGeometry();
+          geom.setAttribute("position", new THREE.BufferAttribute(spec.buf, 3));
+          const mat = new THREE.PointsMaterial({
+            color: spec.color,
+            size: spec.size,
+            map: glowTex,
+            transparent: true,
+            opacity: spec.opacity,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            sizeAttenuation: true
+          });
+          const pts = new THREE.Points(geom, mat);
+          brainGroup.add(pts);
+          regionPoints[spec.key] = pts;
         });
 
-        wholeBrainPoints = new THREE.Points(geom, mat);
-        brainGroup.add(wholeBrainPoints);
-        console.log("Loaded all 139,248 FlyWire Drosophila neurons into 3D WebGL Shader with exact palette matching!");
-
+        console.log("Loaded all 139,248 FlyWire Drosophila neurons into 7 glowing circuits with exact UI palette matching!");
         if (ldr) ldr.style.display = "none";
 
       }).catch(err => {
@@ -873,15 +851,32 @@
       liveCX     += (targetDriveCX     - liveCX)     * 0.25;
       liveKC     += (targetDriveKC     - liveKC)     * 0.25;
       liveDN     += (targetDriveDN     - liveDN)     * 0.30;
+      liveWhole  += (targetDriveWhole  - liveWhole)  * 0.20;
 
-      // Update shader uniforms live from smoothed telemetry
-      if (wholeBrainPoints && brainUniforms) {
-        brainUniforms.uOpticL.value = liveOpticL;
-        brainUniforms.uOpticR.value = liveOpticR;
-        brainUniforms.uCX.value = liveCX;
-        brainUniforms.uKC.value = liveKC;
-        brainUniforms.uDN.value = liveDN;
-        brainUniforms.uWhole.value = telemetry.whole_brain_firing || 0.23;
+      // Modulate glowing particle sizes and opacities live from neural firing rates
+      if (regionPoints.opticL) {
+        regionPoints.opticL.material.size = 1.4 + liveOpticL * 1.8;
+        regionPoints.opticL.material.opacity = Math.min(1.0, 0.65 + liveOpticL * 0.35);
+      }
+      if (regionPoints.opticR) {
+        regionPoints.opticR.material.size = 1.4 + liveOpticR * 1.8;
+        regionPoints.opticR.material.opacity = Math.min(1.0, 0.65 + liveOpticR * 0.35);
+      }
+      if (regionPoints.cx) {
+        regionPoints.cx.material.size = 2.0 + liveCX * 2.4;
+        regionPoints.cx.material.opacity = Math.min(1.0, 0.80 + liveCX * 0.20);
+      }
+      if (regionPoints.kc) {
+        regionPoints.kc.material.size = 1.8 + liveKC * 2.2;
+        regionPoints.kc.material.opacity = Math.min(1.0, 0.75 + liveKC * 0.25);
+      }
+      if (regionPoints.dn) {
+        regionPoints.dn.material.size = 2.4 + liveDN * 3.0;
+        regionPoints.dn.material.opacity = Math.min(1.0, 0.85 + liveDN * 0.15);
+      }
+      if (regionPoints.cb) {
+        regionPoints.cb.material.size = 1.2 + liveWhole * 0.9;
+        regionPoints.cb.material.opacity = Math.min(0.9, 0.50 + liveWhole * 0.35);
       }
 
       if (renderer && scene && camera) {
@@ -977,17 +972,18 @@
           const dnAvg = (dnL + dnR) / 2;
           const whole = telemetry.whole_brain_firing || 0;
 
-          // Pure Biological Firing Rate Drives (Directly mapped from live connectome)
-          // Baseline firing rate in connectome is ~0.10 - 0.25; map dynamic neural activity sensitively
-          targetDriveOptL = Math.max(0.0, Math.min(2.5, (optL - 0.06) * 4.5));
-          targetDriveOptR = Math.max(0.0, Math.min(2.5, (optR - 0.06) * 4.5));
-          targetDriveCX   = Math.max(0.0, Math.min(2.5, (cx   - 0.06) * 4.5));
-          targetDriveKC   = Math.max(0.0, Math.min(2.5, (kc   - 0.06) * 4.0));
-          targetDriveDN   = Math.max(0.0, Math.min(3.0, (dnAvg - 0.06) * 5.0));
+          // Responsive dynamic biological excitation drives
+          targetDriveOptL = optL * 3.5;
+          targetDriveOptR = optR * 3.5;
+          targetDriveCX   = cx * 3.5;
+          targetDriveKC   = kc * 3.2;
+          targetDriveDN   = dnAvg * 4.0;
+          targetDriveWhole = whole * 2.0;
 
-          // Action Potential discharge on gunshot attack boosts Descending Motor
+          // Action Potential discharge on gunshot attack boosts Descending Motor & Central Complex
           if (data.action_taken && data.action_taken.includes("ATTACK")) {
-            targetDriveDN = 2.5;
+            targetDriveDN = Math.max(targetDriveDN, 2.5);
+            targetDriveCX = Math.max(targetDriveCX, 2.0);
           }
 
           // Update Regional Numerical Gauges and Meters
