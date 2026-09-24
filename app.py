@@ -2,17 +2,27 @@
 DOOM-FlyWire Hugging Face Space Entry Point
 ============================================
 demo.launch() is required for ZeroGPU registration with HF's backend proxy.
-Game routes (/doom, /ws/game, assets) are injected into Gradio's internal
-FastAPI via a staticmethod patch on App.create_app before demo.launch() is
-called - single server, no double-bind.
-
-SSR_MODE IS EXPLICITLY DISABLED (ssr_mode=False) so that Node.js does not
-hijack port 7860 and intercept custom routes like /doom and /ws/game.
+Game routes (/doom, /ws/game, assets) are injected directly at the head of
+Gradio's FastAPI router via a staticmethod patch on App.create_app before
+demo.launch() is called - single server, no double-bind, zero conflicts.
 """
 
 import os
-# Must disable Gradio 6 Node.js SSR server so FastAPI handles all routes directly
-os.environ["GRADIO_SSR_MODE"] = "False"
+# Disable Gradio 6 Node.js SSR server so FastAPI handles all requests directly
+os.environ["GRADIO_SSR_MODE"] = "false"
+os.environ["GRADIO_NODE_PATH"] = ""
+
+try:
+    import gradio.node_server
+    gradio.node_server.start_node_server = lambda *a, **k: (None, None, None)
+except Exception:
+    pass
+
+try:
+    import gradio.routes
+    gradio.routes.start_node_server = lambda *a, **k: (None, None, None)
+except Exception:
+    pass
 
 # spaces MUST be imported first: HF detects @spaces.GPU at import time
 import spaces
@@ -24,6 +34,7 @@ import time
 import gradio as gr
 from gradio.routes import App as GradioApp
 from starlette.responses import FileResponse, JSONResponse
+from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 # ── ZeroGPU stub ──────────────────────────────────────────────────────────────
@@ -67,7 +78,7 @@ custom_css = """
 }
 """
 
-with gr.Blocks(title="DOOM-FlyWire Connectome", css=custom_css) as demo:
+with gr.Blocks(title="DOOM-FlyWire Connectome") as demo:
     gr.HTML("""
     <div class="launch-card">
         <h1 style="color: #00f5d4; font-size: 2.2rem; margin-bottom: 8px; font-weight: 800;">
@@ -139,9 +150,8 @@ _orig_create_app = GradioApp.__dict__["create_app"]  # staticmethod descriptor
 
 @staticmethod
 def _patched_create_app(*args, **kwargs):
-    kwargs["ssr_mode"] = False
     app = _orig_create_app.__func__(*args, **kwargs)
-    print(f"[FastAPI] Injected game routes into FastAPI app. WEB_DIR={WEB_DIR} (exists={os.path.exists(WEB_DIR)})")
+    print(f"[FastAPI] Injected game routes at head of router. WEB_DIR={WEB_DIR} (exists={os.path.exists(WEB_DIR)})")
 
     def _serve(rel, media=""):
         f = os.path.join(WEB_DIR, rel) if rel else None
@@ -149,45 +159,17 @@ def _patched_create_app(*args, **kwargs):
             return FileResponse(f, media_type=media) if media else FileResponse(f)
         return JSONResponse({"error": f"{rel} not found"}, status_code=404)
 
-    @app.get("/doom")
-    @app.get("/doom/")
-    async def doom_page():
-        return _serve("index.html")
-
-    @app.get("/health")
-    async def health():
-        return JSONResponse({"status": "ok"})
-
-    @app.get("/brain_anatomy.json")
-    async def ba():
-        return _serve("brain_anatomy.json", "application/json")
-
-    @app.get("/brain_anatomy_3d.json")
-    async def ba3():
-        return _serve("brain_anatomy_3d.json", "application/json")
-
-    @app.get("/brain_139k_pos.bin")
-    async def bpos():
-        return _serve("brain_139k_pos.bin", "application/octet-stream")
-
-    @app.get("/brain_139k_col.bin")
-    async def bcol():
-        return _serve("brain_139k_col.bin", "application/octet-stream")
-
-    @app.get("/synapses_top5k.bin")
-    async def syn():
-        return _serve("synapses_top5k.bin", "application/octet-stream")
-
-    @app.get("/js/three.min.js")
-    async def three():
-        return _serve(os.path.join("js", "three.min.js"), "application/javascript")
-
-    @app.get("/js/OrbitControls.js")
-    async def orbit():
-        return _serve(os.path.join("js", "OrbitControls.js"), "application/javascript")
+    async def doom_page(request): return _serve("index.html")
+    async def health_page(request): return JSONResponse({"status": "ok"})
+    async def ba_page(request): return _serve("brain_anatomy.json", "application/json")
+    async def ba3_page(request): return _serve("brain_anatomy_3d.json", "application/json")
+    async def bpos_page(request): return _serve("brain_139k_pos.bin", "application/octet-stream")
+    async def bcol_page(request): return _serve("brain_139k_col.bin", "application/octet-stream")
+    async def syn_page(request): return _serve("synapses_top5k.bin", "application/octet-stream")
+    async def three_page(request): return _serve(os.path.join("js", "three.min.js"), "application/javascript")
+    async def orbit_page(request): return _serve(os.path.join("js", "OrbitControls.js"), "application/javascript")
 
     # ── WebSocket game stream ─────────────────────────────────────────────────
-    @app.websocket("/ws/game")
     async def ws_game(websocket: WebSocket):
         await websocket.accept()
         print("[WS] Client connected.")
@@ -241,6 +223,23 @@ def _patched_create_app(*args, **kwargs):
         except Exception as exc:
             print(f"[WS Error] {exc}")
 
+    # Inject routes at the head of app.router.routes so they take precedence over everything
+    custom_routes = [
+        Route("/doom", endpoint=doom_page, methods=["GET", "HEAD"]),
+        Route("/doom/", endpoint=doom_page, methods=["GET", "HEAD"]),
+        Route("/health", endpoint=health_page, methods=["GET"]),
+        Route("/brain_anatomy.json", endpoint=ba_page, methods=["GET"]),
+        Route("/brain_anatomy_3d.json", endpoint=ba3_page, methods=["GET"]),
+        Route("/brain_139k_pos.bin", endpoint=bpos_page, methods=["GET"]),
+        Route("/brain_139k_col.bin", endpoint=bcol_page, methods=["GET"]),
+        Route("/synapses_top5k.bin", endpoint=syn_page, methods=["GET"]),
+        Route("/js/three.min.js", endpoint=three_page, methods=["GET"]),
+        Route("/js/OrbitControls.js", endpoint=orbit_page, methods=["GET"]),
+        WebSocketRoute("/ws/game", endpoint=ws_game),
+    ]
+    for r in reversed(custom_routes):
+        app.router.routes.insert(0, r)
+
     return app
 
 
@@ -251,4 +250,4 @@ GradioApp.create_app = _patched_create_app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     print(f"[HF Space] Launching DOOM-FlyWire on 0.0.0.0:{port}...")
-    demo.launch(server_name="0.0.0.0", server_port=port, ssr_mode=False, quiet=False)
+    demo.launch(server_name="0.0.0.0", server_port=port, css=custom_css, quiet=False)
