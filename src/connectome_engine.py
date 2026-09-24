@@ -34,6 +34,9 @@ class ConnectomeEngine:
         # 1. Load connectome sparse adjacency & metadata
         t0 = time.perf_counter()
         self.adj_matrix, self.meta, self.coords = load_flywire_graph(data_dir=data_dir, cache_file=cache_file, device=self.device)
+        if self.device.type == "cpu" and not self.adj_matrix.is_sparse_csr:
+            print("[ConnectomeEngine] Converting adjacency matrix to CSR layout (30x faster CPU execution)...")
+            self.adj_matrix = self.adj_matrix.to_sparse_csr()
         self.num_neurons = self.adj_matrix.size(0)
         self.num_synapses = self.adj_matrix._nnz()
         print(f"[ConnectomeEngine] Loaded {self.num_neurons:,} neurons and {self.num_synapses:,} synapses in {time.perf_counter()-t0:.2f}s.")

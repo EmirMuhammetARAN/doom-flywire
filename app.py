@@ -141,15 +141,13 @@ def _patched_create_app(*args, **kwargs):
             return
 
         agent.is_running = True
-        fps_base = 20.0
-        speed = 1.0
-        fi = (1.0 / fps_base) / speed
+        fps_base = 25.0
+        speed_state = [1.0]
 
-        try:
-            while True:
-                t0 = time.perf_counter()
-                try:
-                    raw = await asyncio.wait_for(websocket.receive_text(), timeout=0.001)
+        async def reader():
+            try:
+                while True:
+                    raw = await websocket.receive_text()
                     msg = json.loads(raw)
                     kind = msg.get("type", "")
                     if kind == "update_params":
@@ -159,12 +157,18 @@ def _patched_create_app(*args, **kwargs):
                     elif kind == "toggle_pause":
                         agent.toggle_pause()
                     elif kind == "set_speed":
-                        speed = max(0.25, min(3.0, float(msg.get("speed", 1.0))))
-                        fi = (1.0 / fps_base) / speed
-                except (asyncio.TimeoutError, json.JSONDecodeError):
-                    pass
+                        speed_state[0] = max(0.25, min(3.0, float(msg.get("speed", 1.0))))
+            except Exception:
+                pass
 
-                data = agent.step()
+        reader_task = asyncio.create_task(reader())
+
+        try:
+            while True:
+                t0 = time.perf_counter()
+                fi = (1.0 / fps_base) / speed_state[0]
+
+                data = await asyncio.to_thread(agent.step)
                 if not data:
                     await asyncio.sleep(0.01)
                     continue
@@ -182,6 +186,8 @@ def _patched_create_app(*args, **kwargs):
             print("[WS] Client disconnected.")
         except Exception as exc:
             print(f"[WS Error] {exc}")
+        finally:
+            reader_task.cancel()
 
     # Inject routes at the head of app.router.routes so they take precedence over everything
     custom_routes = [

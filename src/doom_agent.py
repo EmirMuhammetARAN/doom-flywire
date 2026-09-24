@@ -47,7 +47,7 @@ class DoomConnectomeAgent:
         scenario_path = os.path.join(vzd.scenarios_path, scenario_name)
         self.game.load_config(scenario_path)
         self.game.set_window_visible(window_visible)
-        self.game.set_screen_resolution(vzd.ScreenResolution.RES_640X480)
+        self.game.set_screen_resolution(vzd.ScreenResolution.RES_320X240)
         self.game.set_screen_format(vzd.ScreenFormat.RGB24)
         self.game.set_labels_buffer_enabled(True)
         
@@ -185,7 +185,7 @@ class DoomConnectomeAgent:
         # Encode crisp 640x480 frame as lightweight JPEG base64
         pil_img = Image.fromarray(screen_rgb)
         buffer = io.BytesIO()
-        pil_img.save(buffer, format="JPEG", quality=70)
+        pil_img.save(buffer, format="JPEG", quality=65)
         img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         self.last_frame_b64 = img_b64
 
