@@ -5,14 +5,20 @@ demo.launch() is required for ZeroGPU registration with HF's backend proxy.
 Game routes (/doom, /ws/game, assets) are injected into Gradio's internal
 FastAPI via a staticmethod patch on App.create_app before demo.launch() is
 called - single server, no double-bind.
+
+SSR_MODE IS EXPLICITLY DISABLED (ssr_mode=False) so that Node.js does not
+hijack port 7860 and intercept custom routes like /doom and /ws/game.
 """
+
+import os
+# Must disable Gradio 6 Node.js SSR server so FastAPI handles all routes directly
+os.environ["GRADIO_SSR_MODE"] = "False"
 
 # spaces MUST be imported first: HF detects @spaces.GPU at import time
 import spaces
 
 import asyncio
 import json
-import os
 import threading
 import time
 import gradio as gr
@@ -133,8 +139,9 @@ _orig_create_app = GradioApp.__dict__["create_app"]  # staticmethod descriptor
 
 @staticmethod
 def _patched_create_app(*args, **kwargs):
-    # Call original Gradio create_app
+    kwargs["ssr_mode"] = False
     app = _orig_create_app.__func__(*args, **kwargs)
+    print(f"[FastAPI] Injected game routes into FastAPI app. WEB_DIR={WEB_DIR} (exists={os.path.exists(WEB_DIR)})")
 
     def _serve(rel, media=""):
         f = os.path.join(WEB_DIR, rel) if rel else None
@@ -143,6 +150,7 @@ def _patched_create_app(*args, **kwargs):
         return JSONResponse({"error": f"{rel} not found"}, status_code=404)
 
     @app.get("/doom")
+    @app.get("/doom/")
     async def doom_page():
         return _serve("index.html")
 
@@ -243,4 +251,4 @@ GradioApp.create_app = _patched_create_app
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     print(f"[HF Space] Launching DOOM-FlyWire on 0.0.0.0:{port}...")
-    demo.launch(server_name="0.0.0.0", server_port=port, quiet=False)
+    demo.launch(server_name="0.0.0.0", server_port=port, ssr_mode=False, quiet=False)
