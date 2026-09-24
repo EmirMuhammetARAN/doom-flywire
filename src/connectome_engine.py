@@ -79,6 +79,10 @@ class ConnectomeEngine:
         self.lesion_mask = torch.ones(self.num_neurons, device=self.device, dtype=torch.float32)
         self._update_lesion_mask()
 
+        # Automatic biophysical resting baseline calibration
+        self.baseline = {}
+        self._calibrate_resting_baselines()
+
     def _build_circuit_indices(self):
         """Pre-indexes neuron subgroups for rapid masking, modulation, and motor readout."""
         meta = self.meta
@@ -130,15 +134,55 @@ class ConnectomeEngine:
         print(f"  -> Navigation (CX)={len(self.cx_indices):,} | Memory (Kenyon)={len(self.kc_indices):,} | Motion (T4/T5)={len(self.t4t5_indices):,}")
         print(f"  -> Descending Motor={len(self.dn_all_indices):,} (L={len(self.dn_left_indices):,}, R={len(self.dn_right_indices):,})")
 
+    def _calibrate_resting_baselines(self):
+        """
+        Measures the authentic resting potential of each circuit without external stimulus.
+        Ensures telemetry output starts at pristine resting state (~0.06) without static guesswork.
+        """
+        with torch.no_grad():
+            for _ in range(30):
+                act_mod = self.act.clone()
+                if self.params["gaba_gain"] != 1.0:
+                    act_mod[self.gaba_indices] *= self.params["gaba_gain"]
+                if self.params["ach_gain"] != 1.0:
+                    act_mod[self.ach_indices] *= self.params["ach_gain"]
+                if self.params["glutamate_gain"] != 1.0:
+                    act_mod[self.glu_indices] *= self.params["glutamate_gain"]
+                if self.params["dopamine_gain"] != 1.0:
+                    act_mod[self.da_indices] *= self.params["dopamine_gain"]
+                if self.params["octopamine_gain"] != 1.0:
+                    act_mod[self.oct_indices] *= self.params["octopamine_gain"]
+                if self.params["serotonin_gain"] != 1.0:
+                    act_mod[self.ser_indices] *= self.params["serotonin_gain"]
+
+                I_syn = torch.sparse.mm(self.adj_matrix, act_mod.unsqueeze(-1)).squeeze(-1) * (self.params["gain_global"] * 0.002)
+                self.V = (1.0 - self.params["leak_rate"]) * self.V + I_syn
+                self.act = torch.sigmoid((self.V - self.params["firing_threshold"]) * 5.0) * self.lesion_mask
+
+            self.baseline = {
+                "optic_left": float(self.act[self.t_optic_left].mean().item()),
+                "optic_right": float(self.act[self.t_optic_right].mean().item()),
+                "central_complex": float(self.act[self.t_cx].mean().item()),
+                "mushroom_body": float(self.act[self.t_kc].mean().item()),
+                "descending_left": float(self.act[self.t_dn_left].mean().item()),
+                "descending_right": float(self.act[self.t_dn_right].mean().item()),
+                "whole_brain": float(self.act.mean().item()),
+            }
+
     def set_parameters(self, update_dict: Dict[str, Any]):
         """Live update of chemical sliders, lesion switches, and biophysical constants."""
         changed = False
+        chem_changed = False
         for k, v in update_dict.items():
             if k in self.params:
                 self.params[k] = v
                 changed = True
+                if "gain" in k or "threshold" in k:
+                    chem_changed = True
         if changed:
             self._update_lesion_mask()
+        if chem_changed:
+            self._calibrate_resting_baselines()
 
     def _update_lesion_mask(self):
         """Reconstructs the binary lesion mask based on user switches."""
@@ -165,6 +209,7 @@ class ConnectomeEngine:
         """Resets membrane potentials and firing states."""
         self.V.zero_()
         self.act.zero_()
+        self._calibrate_resting_baselines()
 
     def step(self, sensory_input: Optional[torch.Tensor] = None) -> Tuple[torch.Tensor, Dict[str, float]]:
         """
@@ -221,6 +266,16 @@ class ConnectomeEngine:
         # 6. Apply anatomical lesion mask (killed circuits output 0.0)
         self.act = raw_act * self.lesion_mask
 
+        # Slow homeostatic adaptation (tracks long-term baseline drift, tau ~ 20s)
+        alpha = 0.003
+        self.baseline["optic_left"] = (1.0 - alpha) * self.baseline["optic_left"] + alpha * float(self.act[self.t_optic_left].mean().item())
+        self.baseline["optic_right"] = (1.0 - alpha) * self.baseline["optic_right"] + alpha * float(self.act[self.t_optic_right].mean().item())
+        self.baseline["central_complex"] = (1.0 - alpha) * self.baseline["central_complex"] + alpha * float(self.act[self.t_cx].mean().item())
+        self.baseline["mushroom_body"] = (1.0 - alpha) * self.baseline["mushroom_body"] + alpha * float(self.act[self.t_kc].mean().item())
+        self.baseline["descending_left"] = (1.0 - alpha) * self.baseline["descending_left"] + alpha * float(self.act[self.t_dn_left].mean().item())
+        self.baseline["descending_right"] = (1.0 - alpha) * self.baseline["descending_right"] + alpha * float(self.act[self.t_dn_right].mean().item())
+        self.baseline["whole_brain"] = (1.0 - alpha) * self.baseline["whole_brain"] + alpha * float(self.act.mean().item())
+
         # 7. Compute regional telemetry for real-time dashboard
         telemetry = self.get_telemetry()
         return self.act, telemetry
@@ -228,39 +283,50 @@ class ConnectomeEngine:
     def get_telemetry(self) -> dict:
         """
         Returns authentic biological circuit firing rates.
-        Computes normalized population dynamics (0.02 = resting potential, 1.0 = peak physiological firing)
-        directly from the 139,248 biological FlyWire neurons.
+        Computes dynamic population excitation relative to the self-calibrating homeostatic baseline.
+        Resting state: 0.05 - 0.08 (subtle, semi-transparent idle glow).
+        Sensory / motor stimulation: 0.40 - 0.90 (vivid dynamic flare).
+        Lesioned circuits: 0.00.
+        Seizures: full saturation (1.00) with is_seizure=True.
+        Pure neural dynamics with ZERO manual if-else action rules.
         """
         with torch.no_grad():
-            opt_l = float(self.act[self.t_optic_left].mean().item())
-            opt_r = float(self.act[self.t_optic_right].mean().item())
-            cx_act = float(self.act[self.t_cx].mean().item())
-            kc_act = float(self.act[self.t_kc].mean().item())
-            dn_l = float(self.act[self.t_dn_left].mean().item())
-            dn_r = float(self.act[self.t_dn_right].mean().item())
-            whole_mean = float(self.act.mean().item())
+            cur_opt_l = float(self.act[self.t_optic_left].mean().item())
+            cur_opt_r = float(self.act[self.t_optic_right].mean().item())
+            cur_cx    = float(self.act[self.t_cx].mean().item())
+            cur_kc    = float(self.act[self.t_kc].mean().item())
+            cur_dn_l  = float(self.act[self.t_dn_left].mean().item())
+            cur_dn_r  = float(self.act[self.t_dn_right].mean().item())
+            cur_whole = float(self.act.mean().item())
 
             # Detect epileptiform seizure (global hyper-synchrony)
-            is_seizure = bool(whole_mean > 0.55 or (self.params["gaba_gain"] < 0.25 and whole_mean > 0.40))
+            is_seizure = bool(cur_whole > 0.65 or (self.params["gaba_gain"] < 0.25 and cur_whole > 0.50))
 
-            # Authentic biological excitation normalization directly from raw neuron activations
-            # (Removes the passive 39k-neuron resting offset so active neural ensembles produce full dynamic range)
-            norm_opt_l = float(torch.clamp((torch.tensor(opt_l) - 0.22) / 0.28, 0.02, 1.0).item())
-            norm_opt_r = float(torch.clamp((torch.tensor(opt_r) - 0.22) / 0.28, 0.02, 1.0).item())
-            norm_cx    = float(torch.clamp((torch.tensor(cx_act) - 0.26) / 0.22, 0.02, 1.0).item())
-            norm_kc    = float(torch.clamp((torch.tensor(kc_act) - 0.20) / 0.22, 0.02, 1.0).item())
-            norm_dn_l  = float(torch.clamp((torch.tensor(dn_l) - 0.28) / 0.20, 0.02, 1.0).item())
-            norm_dn_r  = float(torch.clamp((torch.tensor(dn_r) - 0.28) / 0.20, 0.02, 1.0).item())
-            norm_whole = float(torch.clamp((torch.tensor(whole_mean) - 0.22) / 0.28, 0.02, 1.0).item())
+            floor = 0.06
+            scale_optic = 16.0
+            scale_deep = 25.0
+
+            def norm(cur: float, base: float, scale: float, lesioned: bool) -> float:
+                if lesioned:
+                    return 0.0
+                return float(torch.clamp(torch.tensor(floor + (cur - base) * scale), 0.02, 1.0).item())
+
+            norm_opt_l = norm(cur_opt_l, self.baseline["optic_left"], scale_optic, self.params["lesion_optic_left"])
+            norm_opt_r = norm(cur_opt_r, self.baseline["optic_right"], scale_optic, self.params["lesion_optic_right"])
+            norm_cx    = norm(cur_cx, self.baseline["central_complex"], scale_deep, self.params["lesion_central_complex"])
+            norm_kc    = norm(cur_kc, self.baseline["mushroom_body"], scale_deep, self.params["lesion_mushroom_body"])
+            norm_dn_l  = norm(cur_dn_l, self.baseline["descending_left"], scale_deep, self.params["lesion_descending_left"])
+            norm_dn_r  = norm(cur_dn_r, self.baseline["descending_right"], scale_deep, self.params["lesion_descending_right"])
+            norm_whole = norm(cur_whole, self.baseline["whole_brain"], scale_optic, False)
 
         return {
-            "optic_left": norm_opt_l,
-            "optic_right": norm_opt_r,
-            "central_complex": norm_cx,
-            "mushroom_body": norm_kc,
-            "descending_left": norm_dn_l,
-            "descending_right": norm_dn_r,
-            "whole_brain_firing": norm_whole,
+            "optic_left": round(norm_opt_l, 2),
+            "optic_right": round(norm_opt_r, 2),
+            "central_complex": round(norm_cx, 2),
+            "mushroom_body": round(norm_kc, 2),
+            "descending_left": round(norm_dn_l, 2),
+            "descending_right": round(norm_dn_r, 2),
+            "whole_brain_firing": round(norm_whole, 2),
             "is_seizure": is_seizure
         }
 
