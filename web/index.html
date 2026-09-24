@@ -862,12 +862,12 @@
         controls.update();
       }
 
-      // Smooth exponential synaptic decay for event pulses (action potentials fade in ~300-400ms)
-      pulseOptL *= 0.92;
-      pulseOptR *= 0.92;
-      pulseCX   *= 0.90;
-      pulseKC   *= 0.90;
-      pulseDN   *= 0.87;
+      // Smooth exponential synaptic decay for event pulses (visible ~350-450ms biological pulse)
+      pulseOptL *= 0.93;
+      pulseOptR *= 0.93;
+      pulseCX   *= 0.91;
+      pulseKC   *= 0.91;
+      pulseDN   *= 0.88;
 
       // Modulate particle size & opacity: Sleek dark rest state -> Vivid bright event flash
       if (regionPoints.opticL) {
@@ -976,7 +976,54 @@
           document.getElementById("pctAttack").innerText = pAtk + "%";
         }
 
-        // Update Telemetry & Biological Event Pulses directly from DOOM gameplay & connectome
+        // Dynamic Multi-Circuit Event Activation (Sol Göz Mavi, Sağ Göz Camgöbeği, CX Mor, KC Pembe, DN Yeşil)
+        // 1. Health drop / threat event -> Mushroom Body (learning/memory) flashes pink
+        if (data.health !== undefined) {
+          if (data.health < prevHealth && prevHealth > 0) {
+            pulseKC = 1.0; // Threat surge!
+          }
+          prevHealth = data.health;
+        }
+
+        // 2. Action Events (Turning & Attacking)
+        if (data.action_taken && Array.isArray(data.action_taken)) {
+          if (data.action_taken.includes("TURN_LEFT")) {
+            pulseOptL = Math.max(pulseOptL, 0.95); // Sol göz mavi parlar!
+            pulseCX   = Math.max(pulseCX, 0.95);   // Merkezi kompleks mor parlar!
+          }
+          if (data.action_taken.includes("TURN_RIGHT")) {
+            pulseOptR = Math.max(pulseOptR, 0.95); // Sağ göz camgöbeği parlar!
+            pulseCX   = Math.max(pulseCX, 0.95);   // Merkezi kompleks mor parlar!
+          }
+          if (data.action_taken.includes("ATTACK")) {
+            pulseDN   = 1.0;                       // İnen motor yeşil parlar!
+            pulseKC   = Math.max(pulseKC, 0.85);   // Mantar cisimcik pembe parlar!
+            pulseOptL = Math.max(pulseOptL, 0.70); // Namlu alevi iki gözü de uyarır
+            pulseOptR = Math.max(pulseOptR, 0.70);
+          }
+        }
+
+        // 3. Visual Perception Events (Enemy in sight, target lock, enemy left/right)
+        if (data.visual_meta) {
+          const vm = data.visual_meta;
+          if (vm.has_target) {
+            pulseKC = Math.max(pulseKC, 0.60); // Düşman algılandı
+            if (vm.target_offset < -0.15) {
+              pulseOptL = Math.max(pulseOptL, 0.85); // Düşman solda -> Sol göz parlar!
+            } else if (vm.target_offset > 0.15) {
+              pulseOptR = Math.max(pulseOptR, 0.85); // Düşman sağda -> Sağ göz parlar!
+            } else {
+              pulseOptL = Math.max(pulseOptL, 0.70);
+              pulseOptR = Math.max(pulseOptR, 0.70);
+              pulseCX   = Math.max(pulseCX, 0.85);
+            }
+            if (vm.target_locked) {
+              pulseCX = Math.max(pulseCX, 1.0); // Kilitlenme: Merkezi kompleks zirvede!
+            }
+          }
+        }
+
+        // 4. Biological Connectome Telemetry Firing Rate Waves
         if (data.telemetry) {
           telemetry = data.telemetry;
 
@@ -989,66 +1036,12 @@
           const dnAvg = (dnL + dnR) / 2;
           const whole = telemetry.whole_brain_firing || 0;
 
-          // 1. Damage Event: Player takes damage -> Mushroom Body threat response
-          if (data.health !== undefined) {
-            if (data.health < prevHealth && prevHealth > 0) {
-              pulseKC = 1.0;
-            }
-            prevHealth = data.health;
-          }
-
-          // 2. Action Event: Gunshot fired -> Descending Motor spikes with peak action potential!
-          if (data.action_taken && data.action_taken.includes("ATTACK")) {
-            pulseDN = 1.0;
-            pulseCX = Math.max(pulseCX, 0.7);
-          }
-
-          // 3. Navigation Event: Steering left or right -> Central Complex heading adjustment
-          let isTurning = false;
-          if (data.action_probs) {
-            const pL = data.action_probs.TURN_LEFT || data.action_probs.MOVE_LEFT || 0;
-            const pR = data.action_probs.TURN_RIGHT || data.action_probs.MOVE_RIGHT || 0;
-            if (pL > 0.35 || pR > 0.35) {
-              isTurning = true;
-            }
-          }
-
-          // 4. Visual Events: Pulse on optical surge above idle baseline (~0.18) or sudden shift
-          const dOptL = optL - 0.18;
-          if (dOptL > 0.04) {
-            pulseOptL = Math.max(pulseOptL, Math.min(1.0, dOptL * 3.5));
-          }
-          if (Math.abs(optL - prevOptL) > 0.04) {
-            pulseOptL = Math.max(pulseOptL, 0.6);
-          }
-          prevOptL = optL;
-
-          const dOptR = optR - 0.18;
-          if (dOptR > 0.04) {
-            pulseOptR = Math.max(pulseOptR, Math.min(1.0, dOptR * 3.5));
-          }
-          if (Math.abs(optR - prevOptR) > 0.04) {
-            pulseOptR = Math.max(pulseOptR, 0.6);
-          }
-          prevOptR = optR;
-
-          // Central Complex event (steering / heading vectors)
-          const dCX = cx - 0.16;
-          if (dCX > 0.04 || isTurning) {
-            pulseCX = Math.max(pulseCX, Math.min(1.0, (dCX > 0 ? dCX * 3.0 : 0) + (isTurning ? 0.65 : 0)));
-          }
-
-          // Mushroom Body event
-          const dKC = kc - 0.14;
-          if (dKC > 0.04) {
-            pulseKC = Math.max(pulseKC, Math.min(1.0, dKC * 3.0));
-          }
-
-          // Descending Motor event (locomotion / attack)
-          const dDN = dnAvg - 0.18;
-          if (dDN > 0.04) {
-            pulseDN = Math.max(pulseDN, Math.min(1.0, dDN * 3.0));
-          }
+          // Continuous neural delta pulses (canlı nöral akım yükseldikçe devreleri uyandırır)
+          if (optL > 0.12) pulseOptL = Math.max(pulseOptL, Math.min(1.0, (optL - 0.10) * 3.5));
+          if (optR > 0.12) pulseOptR = Math.max(pulseOptR, Math.min(1.0, (optR - 0.10) * 3.5));
+          if (cx > 0.12)   pulseCX   = Math.max(pulseCX,   Math.min(1.0, (cx - 0.10) * 3.5));
+          if (kc > 0.10)   pulseKC   = Math.max(pulseKC,   Math.min(1.0, (kc - 0.08) * 3.5));
+          if (dnAvg > 0.12) pulseDN  = Math.max(pulseDN,  Math.min(1.0, (dnAvg - 0.10) * 3.5));
 
           // Update Regional Numerical Gauges and Meters
           document.getElementById("rateOpticL").innerText = optL.toFixed(2);
