@@ -55,7 +55,7 @@ class MotorDecoder:
         self.step_idx += 1
         visual_meta = visual_meta or {}
 
-        with torchno_grad():
+        with torch.no_grad():
             if self.idx_left.device != act.device:
                 self.idx_left = self.idx_left.to(act.device)
                 self.idx_right = self.idx_right.to(act.device)

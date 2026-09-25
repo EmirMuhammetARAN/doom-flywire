@@ -63,40 +63,45 @@ class ConnectomeEngine:
         self._calibrate_resting_baselines()
 
     def _build_circuit_indices(self):
-        """Pre-indexes neuron subgroups for rapid population readout."""
+        """Pre-indexes neuron subgroups for rapid population readout (100% NumPy 1.x & 2.x compatible)."""
         meta = self.meta
-        cell_types = meta["cell_type"].fillna("unknown").str.lower().values
+        ct = meta["cell_type"].fillna("unknown").astype(str).str.lower()
+        sc = meta["super_class"].fillna("unknown").astype(str).str.lower()
+        cc = meta["cell_class"].fillna("unknown").astype(str).str.lower()
+        side = meta["side"].fillna("unknown").astype(str).str.lower()
 
         # Optic Lobe (Visual System)
-        optic_mask = meta["super_class"].str.lower().isin(["optic", "visual_projection", "visual_centrifugal"]).values
+        optic_mask = sc.isin(["optic", "visual_projection", "visual_centrifugal"]).values
         self.optic_mask = optic_mask
 
-        # Hemispheric split by center-line (X coordinate ~ 550,000 nm in FlyWire coordinates)
+        # Hemispheric split by biological side annotation and midline coordinate (~130,000 nm)
         x_coords = self.coords[:, 0]
-        midline_x = 550000.0
+        midline_x = 130000.0
+        is_left = (side == "left").values | ((side != "right") & (x_coords < midline_x))
+        is_right = (side == "right").values | ((side != "left") & (x_coords >= midline_x))
 
-        self.optic_left_indices = np.where(optic_mask & (x_coords < midline_x))[0]
-        self.optic_right_indices = np.where(optic_mask & (x_coords >= midline_x))[0]
+        self.optic_left_indices = np.where(optic_mask & is_left)[0]
+        self.optic_right_indices = np.where(optic_mask & is_right)[0]
 
         # Central Complex (Navigation & Steering Compass)
-        cx_mask = meta["cell_class"].fillna("").str.lower().isin(["central_complex", "cx"]) | meta["super_class"].str.lower().isin(["central"])
+        cx_mask = cc.isin(["central_complex", "cx"]) | sc.isin(["central"])
         self.cx_indices = np.where(cx_mask)[0]
         if len(self.cx_indices) == 0:
-            self.cx_indices = np.where(np.char.find(cell_types, "epg") >= 0)[0]
+            self.cx_indices = np.where(ct.str.contains("epg", regex=False).values)[0]
 
         # Mushroom Body Kenyon Cells (Olfactory & Threat Memory)
-        kc_mask = np.char.find(cell_types, "kc") >= 0
+        kc_mask = ct.str.contains("kc", regex=False).values
         self.kc_indices = np.where(kc_mask)[0]
 
         # Motion Vision Columnar Neurons (T4 / T5 optical flow detectors)
-        t4t5_mask = (np.char.find(cell_types, "t4") >= 0) | (np.char.find(cell_types, "t5") >= 0)
+        t4t5_mask = (ct.str.contains("t4", regex=False) | ct.str.contains("t5", regex=False)).values
         self.t4t5_indices = np.where(t4t5_mask)[0]
 
         # Descending Motor Neurons (Premotor steering & attack drivers)
-        dn_mask = meta["super_class"].str.lower().isin(["descending"])
+        dn_mask = sc.isin(["descending"]).values
         self.dn_all_indices = np.where(dn_mask)[0]
-        self.dn_left_indices = np.where(dn_mask & (x_coords < midline_x))[0]
-        self.dn_right_indices = np.where(dn_mask & (x_coords >= midline_x))[0]
+        self.dn_left_indices = np.where(dn_mask & is_left)[0]
+        self.dn_right_indices = np.where(dn_mask & is_right)[0]
 
         # Convert to device tensors for zero-copy slicing
         self.t_optic_left = torch.from_numpy(self.optic_left_indices).to(self.device)
