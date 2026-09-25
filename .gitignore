@@ -1,14 +1,14 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-*py.class
+*$py.class
 *.so
 
-# Environments
+# Virtual Environments
 .venv/
 env/
 venv/
-ENV/
+EIV/
 env.bak/
 venv.bak/
 
@@ -24,16 +24,14 @@ Thumbs.db
 _vizdoom.ini
 *.whl
 
-# Large Biological Datasets & Caches (raw feather/tsv ignored, cache tracked via LFS)
+# Large Datasets & Caches (raw feather/tsv ignored, cache tracked via LFS)
 data/*
 !data/.gitkeep
 !data/connectome_cache.pt
 !models/.gitkeep
 
-# Temporary / Scratch Files
+# Temporary / Scratch / Local Deploy Scripts
 scratch/
 *.log
 *.tmp
-
-
 upload_to_space.py

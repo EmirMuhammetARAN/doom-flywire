@@ -9,176 +9,145 @@ pinned: false
 license: mit
 ---
 
-# 🧠 DOOM-FlyWire: 139,248-Neuron Biological Connectome Autonomous Agent & In Silico Neuro-Sandbox
+# 🪰 DOOM-FlyWire: 139,248-Neuron Biological Connectome Autonomous Agent & 3D Real-Time Visualizer
 
 [![Connectome: FlyWire Nature 2024](https://img.shields.io/badge/Connectome-FlyWire%20(Nature%202024)-00f5d4.svg)](https://flywire.ai)
 [![Environment: ViZDoom](https://img.shields.io/badge/Environment-ViZDoom%20(ZDoom%20RL)-ff0055.svg)](https://vizdoom.farama.org)
 [![Scale: 100% Unreduced](https://img.shields.io/badge/Scale-139%2C248%20Neurons%20%7C%2015.1M%20Synapses-blueviolet.svg)](#-system-architecture)
-[![Performance: 200+ FPS](https://img.shields.io/badge/Performance-200%2B%20FPS%20(2.5ms%20SpMV)-76b900.svg)](#-biophysical-engine--performance)
+[![Performance: 200+ FPS](https://img.shields.io/badge/Performance-200%2B%20FPS%20(SpMV)-76b900.svg)](#-biophysical-engine--performance)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A real-time, closed-loop biological digital twin running the complete, unreduced adult *Drosophila melanogaster* whole-brain connectome ([FlyWire Consortium, *Nature* 2024](https://www.nature.com/articles/s41586-024-07558-y): **139,248 neurons, 15,090,883 directed synapses**) as an autonomous agent playing **DOOM** ([ViZDoom](https://vizdoom.farama.org/)).
 
-The project includes an interactive, browser-based **In Silico Neuroscientist Control Console** that allows users to manipulate chemical neuromodulators (*Dopamine, Octopamine, Serotonin, GABA*), induce targeted anatomical optogenetic lesions (*Optic Lobe, Central Complex, Motion Detectors*), and observe behavioral changes and epileptic seizures in real time.
+The project features a real-time, browser-based **3D Connectome Neural Activity Visualizer** (Three.js WebGL) rendering all 139,248 biological neurons in 3D space with dynamic, calcium-fluorescence-style excitation halos as the fly perceives, processes, and navigates the 3D environment.
 
 ---
 
-## 🌟 Key Highlights
+## ⚡ Key Highlights
 
 - **100% Complete Biological Wiring:** Zero neuron downsampling and zero synapse pruning. All 139,248 neurons and 15,090,883 synapses propagate physiological signals in real time.
-- **Microsecond-Scale Biophysical GPU Engine:** Uses sparse matrix-vector multiplication (SpMV) on GPU, achieving **2.5 ms per full-brain step (>200 FPS)** on an NVIDIA RTX 4080.
-- **Compound Eye Retinotopy:** Translates ViZDoom game frames into optical ommatidia currents, stimulating photoreceptors (R1–R8) and Elementary Motion Detectors (T4/T5).
-- **Descending Motor Steering:** Decodes asymmetric population firing of 1,303 Descending Neurons (DNs) into left/right steering, forward thrust, and weapon firing.
-- **In Silico Neuro-Sandbox:** Interactive web dashboard with 12+ real-time chemical and anatomical levers.
+- **Microsecond-Scale Biophysical Engine:** Uses sparse matrix-vector multiplication (SpMV) on GPU / CSR-CPU, achieving **>200 FPS** neural propagation throughput.
+- **Compound Eye Retinotopy:** Translates ViZDoom game frames into optical ommatidia currents (32x32 array), stimulating photoreceptors and Elementary Motion Detectors (T4/T5 columns).
+- **Descending Motor Steering:** Decodes asymmetric population firing of 1,303 Descending Neurons (DNs) into continuous left/right steering, tracking, and attack decisions.
+- **Interactive 3D Connectome Visualizer:** WebGL point-cloud rendering of all 139,248 neurons with dynamic size and luminance modulation based on regional firing rates.
+- **Live Circuit Telemetry:** Real-time analog firing rate monitoring for Left/Right Optic Lobes, Central Complex (CX) heading compass, Mushroom Body (KC) memory circuits, Descending Motor pool, and Whole Brain.
 
 ---
 
-## 🔬 System Architecture
+## 🧠 System Architecture
 
-```
-                                [ViZDoom Game Engine]
-                                 (320x240 RGB Screen)
-                                          │
-                                          │ Raw Pixels
-                                          ▼
-                ┌───────────────────────────────────────────────────┐
-                │        Compound Eye Retinotopy & Motion Encoder   │
-                │  - 32x32 Ommatidia Array (1,024 optical facets)   │
-                │  - Elementary Motion Detection (T4/T5 Columns)    │
-                └─────────────────────────┬─────────────────────────┘
-                                          │
-                                          │ Injected Photoreceptor Current (R1-R8)
-                                          ▼
-                ┌───────────────────────────────────────────────────┐
-                │    100% FlyWire Whole-Brain Connectome (GPU)      │
-                │  - 139,248 Biological Neurons                     │
-                │  - 15,090,883 Directed Synapses (ACh, GABA, Glu)  │
-                │  - Continuous-Time Leaky Rate Dynamics            │
-                │                                                   │
-                │     [LIVE NEUROSCIENTIST CONTROL CONSOLE]         │
-                │  - Neuromodulator Bath: DA, OA, 5-HT, GABA, ACh   │
-                │  - Circuit Lesions: Optic, Central Complex, MB    │
-                │  - Biophysical Levers: Leak, Threshold, Noise     │
-                └─────────────────────────┬─────────────────────────┘
-                                          │
-                                          │ Population Firing of Descending Neurons
-                                          ▼
-                ┌───────────────────────────────────────────────────┐
-                │                 Motor Decoder                     │
-                │  - DN_Left vs DN_Right -> Steer Left / Right      │
-                │  - Bilateral Motor Vigor -> Move Forward          │
-                │  - Frontal Attack Surge -> Weapon Fire            │
-                └─────────────────────────┬─────────────────────────┘
-                                          │
-                                          ▼
-                               [Execute Action in DOOM]
-```
+`
+                          [ViZDoom Game Engine]
+                           (320x240 RGB Screen)
+                                    |
+                                    | Raw Pixels
+                                    v
+          +---------------------------------------------------+
+          |     Compound Eye Retinotopy & Motion Encoder      |
+          |  - 32x32 Ommatidia Array (1,024 optical facets)   |
+          |  - Elementary Motion Detection (T4/T5 Columns)    |
+          |  - Lobula Columnar (LC) Target Tracking           |
+          +---------------------------------------------------+
+                                    |
+                                    | Injected Photoreceptor Current
+                                    v
+          +---------------------------------------------------+
+          |     100% FlyWire Whole-Brain Connectome           |
+          |  - 139,248 Biological Neurons                     |
+          |  - 15,090,883 Directed Synapses (ACh, GABA, Glu)  |
+          |  - Leaky Integrate-and-Fire Dynamic Integration   |
+          +---------------------------------------------------+
+                                    |
+                                    | Population Firing of Descending Neurons
+                                    v
+          +---------------------------------------------------+
+          |                   Motor Decoder                   |
+          |  - DN_Left vs DN_Right -> Continuous Steering     |
+          |  - Bilateral Motor Vigor + Target Lock -> Attack  |
+          +---------------------------------------------------+
+                                    |
+                                    v
+                         [Execute Action in DOOM]
+`
 
 ---
 
-## 🎮 The Neuroscientist Sandbox Suite
-
-The web dashboard provides interactive controls categorized into three biological layers:
-
-### 1. Neuromodulatory Chemical Bath
-| Lever | Range | Physiological Mechanism & In-Game Behavioral Effect |
-| :--- | :--- | :--- |
-| **Dopamine Gain** | 0.0x – 3.0x | Modulates motor vigor and reward sensitivity. High DA causes aggressive, fast-twitch tracking; 0.0x causes akinetic freezing. |
-| **Octopamine Gain** | 0.0x – 3.0x | Invertebrate norepinephrine analog. Drives fight-or-flight arousal and rapid retreat responses. |
-| **Serotonin (5-HT)** | 0.0x – 3.0x | Stabilizes motor output and suppresses erratic direction switching. |
-| **GABAergic Inhibition** | 0.0x – 2.5x | Global inhibitory balance. Dropping below 0.2x triggers **Epileptiform Seizures** (global hyper-synchrony, spastic twitching); high values induce sedation. |
-| **Acetylcholine Drive** | 0.1x – 2.0x | Primary excitatory neurotransmitter governing cortical gain and sensory transmission. |
-
-### 2. Targeted In Silico Anatomical Lesions (Laser Ablation)
-- **Blind Left Eye / Blind Right Eye:** Silences sensory input to the corresponding optic lobe; the agent completely ignores threats on the blinded side.
-- **Silence Motion Detectors (T4/T5 Columnar Knockout):** Destroys optical flow perception; the fly perceives static textures but fails to dodge incoming projectiles.
-- **Lesion Central Complex (CX):** Destroys the heading compass (Protocerebral Bridge & Fan-Shaped Body); the agent loses heading stability and spins in circles.
-- **Lesion Mushroom Body (Kenyon Cells):** Disrupts associative memory subcircuits.
-- **Total Motor Paralysis (DN Silencing):** All descending motor neurons are silenced; the brain remains active and perceives threats, but the character is completely paralyzed.
-
-### 3. Biophysical Dynamics
-- **Membrane Leak Rate (tau):** Temporal integration window of biological neurons.
-- **Firing Threshold:** Voltage sensitivity for non-linear sigmoidal activation.
-- **Synaptic Thermal Noise:** Stochastic exploration vs. deterministic execution.
-
----
-
-## ⚡ Biophysical Engine & Performance
+## 🔬 Biophysical Engine & Dynamics
 
 The simulator implements continuous-time leaky rate dynamics over sparse matrix-vector multiplication (SpMV):
 
-```
-V[t+1] = (1 - leak_rate) * V[t] + W_syn @ act[t] + I_sensory[t] + noise
-act[t+1] = sigmoid((V[t+1] - threshold) * 5.0) * lesion_mask
-```
+`
+I_syn[t] = W_syn @ act[t]
+I_tot[t] = I_syn[t] * gain + I_sensory[t] + noise
+V[t+1]   = (1 - leak_rate) * V[t] + I_tot[t]
+act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
+`
 
-On an **NVIDIA GeForce RTX 4080 Laptop GPU (12 GB VRAM)**:
-- **Graph Allocation:** 60.4 MB for 15,090,883 sparse signed synapses.
-- **Single-Step Propagation:** **2.53 ms** (395 FPS isolated engine throughput).
-- **Closed-Loop System:** **71.5 FPS** (including ViZDoom rendering, retinotopy encoding, 15M synapse propagation, and motor decoding).
+- **Graph Memory:** ~60.4 MB for 15,090,883 sparse signed synapses.
+- **Pure Tensor Propagation:** Zero heuristic if-else overrides in neural dynamics; motor commands are purely linear and softmax population readouts from descending motor neurons.
+- **Dynamic 3D Rendering Transfer:** Regional firing rates modulate point-cloud particle size and photon opacity via linear optical transfer functions, emulating biological calcium imaging (GCaMP).
 
 ---
 
 ## 📁 Repository Structure
 
-```
+`
 .
 ├── data/
 │   ├── Supplemental_file1_neuron_annotations.tsv   # FlyWire 139,248 neuron annotations
 │   ├── proofread_connections_783.feather           # 15,090,883 directed synapses
 │   └── connectome_cache.pt                         # Pre-built PyTorch sparse graph tensor
-├── models/                                         # Trained checkpoint weights (.pt)
+├── models/                                         # Checkpoint weights (.pt)
 ├── src/
-│   ├── __init__.py                                 # Package initialization
+│   ├── __init__.py                                 # Package exports
 │   ├── graph_loader.py                             # Fast FlyWire connectome loader
-│   ├── connectome_engine.py                        # 15M-synapse biophysical GPU dynamics engine
+│   ├── connectome_engine.py                        # 15M-synapse biophysical dynamics engine
 │   ├── retinotopy_encoder.py                       # Compound eye & motion optical flow encoder
 │   ├── motor_decoder.py                            # Descending neuron population motor decoder
 │   └── doom_agent.py                               # Closed-loop ViZDoom connectome agent
 ├── web/
-│   ├── js/                                         # Local Three.js and OrbitControls vendor bundle
+│   ├── js/                                         # Local Three.js and OrbitControls
 │   ├── brain_139k_pos.bin                          # 139,248 neuron 3D coordinates (1.67 MB)
 │   ├── brain_139k_col.bin                          # 139,248 neuron anatomical colors (417 KB)
-│   └── index.html                                  # 3D Connectome and Perception-Action Dashboard
-├── server.py                                       # FastAPI + WebSocket live streaming server
+│   └── index.html                                  # 3D Connectome and Live Action Dashboard
+├── app.py                                          # Hugging Face Space & Gradio entry point
+├── server.py                                       # Standalone FastAPI + WebSocket server
 ├── train_doom.py                                   # Connectome policy reinforcement training loop
-├── Dockerfile                                      # Hugging Face Spaces and Docker container build
-├── .dockerignore                                   # Container build exclusions
-├── .gitattributes                                  # Git LFS binary dataset tracking
+├── .gitattributes                                  # Git LFS binary tracking
 ├── .gitignore                                      # Ignored virtual environments and artifacts
+├── packages.txt                                    # Linux system dependencies
 ├── requirements.txt                                # Python dependencies
 ├── LICENSE                                         # MIT License
 └── README.md
-```
+`
 
 ---
 
 ## 🚀 Quickstart
 
 ### 1. Prerequisites & Environment
-Ensure you have Python 3.10+ and a CUDA-capable GPU:
-```bash
-git clone https://github.com/your-username/fly.git
-cd fly
+Ensure you have Python 3.10+:
+`ash
+git clone https://github.com/EmirMuhammetARAN/doom-flywire.git
+cd doom-flywire
 
 # Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+source .venv/bin/activate  # On Windows: .venv\Scriptsctivate
 
 # Install dependencies
 pip install -r requirements.txt
-pip install torch --index-url https://download.pytorch.org/whl/cu124
-```
+`
 
-### 2. Launch the Web Sandbox
-Start the FastAPI streaming server:
-```bash
-python server.py
-```
-Open your browser at **`http://localhost:8000`**. You will see:
-- The live DOOM viewport controlled by the fruit fly brain.
-- Real-time firing rate gauges of the Optic Lobe, Central Complex, and Descending Motor Neurons.
-- The interactive sandbox panel with sliders and toggle switches.
+### 2. Launch the Web Application
+Start the application server:
+`ash
+python app.py
+`
+Open your browser at **http://localhost:7860** (or http://localhost:8000 if using python server.py). You will see:
+- The live DOOM game viewport autonomously navigated by the 139,248-neuron connectome.
+- The interactive 3D WebGL connectome visualizer rendering the active firing dynamics of the brain in real time.
+- Real-time biological circuit activity meters (Optic Lobes, Central Complex, Mushroom Body, Descending Motor pool, Whole Brain).
 
 ---
 

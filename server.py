@@ -2,7 +2,7 @@
 DOOM-FlyWire Real-Time Web Server
 =================================
 FastAPI + WebSockets server streaming live ViZDoom gameplay, 139k-neuron
-connectome telemetry, and accepting real-time neuroscientist sandbox controls.
+connectome telemetry, and broadcasting real-time biological circuit telemetry.
 
 HF ZeroGPU note: Agent is initialized lazily on first WebSocket connection,
 NOT during FastAPI startup, so the app stays alive even if GPU is unavailable
@@ -20,7 +20,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 
-app = FastAPI(title="DOOM-FlyWire Connectome Sandbox")
+app = FastAPI(title="DOOM-FlyWire Connectome Agent & 3D Visualizer")
 
 # Global agent — initialized lazily on first WebSocket connection
 agent = None

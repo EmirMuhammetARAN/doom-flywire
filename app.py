@@ -41,7 +41,7 @@ from starlette.responses import FileResponse, JSONResponse
 from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
-# ── ZeroGPU stub ──────────────────────────────────────────────────────────────
+# --- ZeroGPU Stub ---
 # HF detects @spaces.GPU at scan/import time. No UI elements required.
 @_gpu_decorator
 def _gpu_ready():
@@ -53,7 +53,7 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
 os.makedirs(WEB_DIR, exist_ok=True)
 
 
-# ── Fullscreen Edge-to-Edge Visualizer ────────────────────────────────────────
+# --- Fullscreen Edge-to-Edge Visualizer ---
 with gr.Blocks(title="DOOM-FlyWire Connectome", fill_width=True, fill_height=True) as demo:
     gr.HTML("""
     <style>
@@ -75,7 +75,7 @@ with gr.Blocks(title="DOOM-FlyWire Connectome", fill_width=True, fill_height=Tru
     """)
 
 
-# ── Game agent (lazy init — NOT at startup) ───────────────────────────────────
+# --- Game Agent (Lazy Initialization) ---
 _agent = None
 _agent_lock = threading.Lock()
 _agent_error = None
@@ -104,7 +104,7 @@ def _get_agent():
             return None
 
 
-# ── Patch App.create_app to inject our routes ───────────────────────────
+# --- FastAPI Route Injection ---
 _orig_create_app = GradioApp.__dict__["create_app"]  # staticmethod descriptor
 
 
@@ -134,7 +134,7 @@ def _patched_create_app(*args, **kwargs):
     async def three_page(request): return _serve(os.path.join("js", "three.min.js"), "application/javascript")
     async def orbit_page(request): return _serve(os.path.join("js", "OrbitControls.js"), "application/javascript")
 
-    # ── WebSocket game stream ─────────────────────────────────────────────────
+    # --- WebSocket Game Stream ---
     async def ws_game(websocket: WebSocket):
         await websocket.accept()
         print("[WS] Client connected.")
@@ -217,7 +217,7 @@ def _patched_create_app(*args, **kwargs):
 GradioApp.create_app = _patched_create_app
 
 
-# ── Launch ────────────────────────────────────────────────────────────────────
+# --- Application Launch ---
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 7860))
     print(f"[HF Space] Launching DOOM-FlyWire on 0.0.0.0:{port}...")
