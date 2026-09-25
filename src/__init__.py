@@ -1,7 +1,7 @@
 """
 DOOM-FlyWire: 139,248-Neuron Biological Connectome Autonomous Agent
 ===================================================================
-A real-time whole-brain biological digital twin mapping the complete adult
+A real-time whole-brain biological connectome simulation mapping the complete adult
 Drosophila melanogaster connectome (FlyWire Nature 2024: 139,248 neurons,
 15,090,883 synapses) to ViZDoom with a real-time 3D neural activity visualizer.
 """

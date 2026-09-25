@@ -6,7 +6,7 @@
 [![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Live%20Demo-yellow.svg)](https://huggingface.co/spaces/emiraran/doom-flywire)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-A real-time, closed-loop biological digital twin running the complete, unreduced adult *Drosophila melanogaster* whole-brain connectome ([FlyWire Consortium, *Nature* 2024](https://www.nature.com/articles/s41586-024-07558-y): **139,248 neurons, 15,090,883 directed synapses**) as an autonomous agent playing **DOOM** ([ViZDoom](https://vizdoom.farama.org/)).
+A real-time, closed-loop biological connectome simulation running the complete, unreduced adult *Drosophila melanogaster* whole-brain connectome ([FlyWire Consortium, *Nature* 2024](https://www.nature.com/articles/s41586-024-07558-y): **139,248 neurons, 15,090,883 directed synapses**) as an autonomous agent playing **DOOM** ([ViZDoom](https://vizdoom.farama.org/)).
 
 The project features a real-time, browser-based **3D Connectome Neural Activity Visualizer** (Three.js WebGL) rendering all 139,248 biological neurons in 3D space with dynamic, calcium-fluorescence-style excitation halos as the fly perceives, processes, and navigates the 3D environment.
 
