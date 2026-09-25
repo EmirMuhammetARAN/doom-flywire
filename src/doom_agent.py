@@ -89,7 +89,7 @@ class DoomConnectomeAgent:
         self.last_frame_b64 = ""
 
     def update_sandbox(self, params_dict: dict):
-        """Allows live user adjustments of chemical bath and lesion levers."""
+        """Allows live adjustments of biophysical simulation parameters."""
         self.engine.set_parameters(params_dict)
 
     def reset_episode(self):
@@ -148,14 +148,14 @@ class DoomConnectomeAgent:
         if state is None:
             return {}
 
-        # 1. Visual Perception (Compound Eye with Optic Lesions & Target Tracking)
+        # 1. Visual Perception (Compound Eye & Target Tracking)
         screen_rgb = state.screen_buffer  # (H, W, 3) RGB
         sensory_current, visual_meta = self.encoder.encode(screen_rgb, state.labels, params=self.engine.params)
 
         # 2. Whole-Brain Biological Propagation (15M synapses)
         act, telemetry = self.engine.step(sensory_current)
 
-        # 3. Motor Action Decoding (Honors Chemical Bath, Seizures, Sedation, & Lesions)
+        # 3. Motor Action Decoding (DN Population Motor Readout)
         action_binary, action_probs = self.decoder.decode(act, visual_meta, params=self.engine.params)
 
         # 4. Execute in DOOM (2 frame skip for natural, smooth, non-hyper speed)
