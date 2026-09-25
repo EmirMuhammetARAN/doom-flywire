@@ -97,7 +97,6 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 │   ├── Supplemental_file1_neuron_annotations.tsv   # FlyWire 139,248 neuron annotations
 │   ├── proofread_connections_783.feather           # 15,090,883 directed synapses
 │   └── connectome_cache.pt                         # Pre-built PyTorch sparse graph tensor
-├── models/                                         # Checkpoint weights (.pt)
 ├── src/
 │   ├── __init__.py                                 # Package exports
 │   ├── graph_loader.py                             # Fast FlyWire connectome loader
@@ -111,8 +110,6 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 │   ├── brain_139k_col.bin                          # 139,248 neuron anatomical colors (417 KB)
 │   └── index.html                                  # 3D Connectome and Live Action Dashboard
 ├── app.py                                          # Hugging Face Space & Gradio entry point
-├── server.py                                       # Standalone FastAPI + WebSocket server
-├── train_doom.py                                   # Connectome policy reinforcement training loop
 ├── .gitattributes                                  # Git LFS binary tracking
 ├── .gitignore                                      # Ignored virtual environments and artifacts
 ├── packages.txt                                    # Linux system dependencies
@@ -144,7 +141,7 @@ Start the application server:
 `ash
 python app.py
 `
-Open your browser at **http://localhost:7860** (or http://localhost:8000 if using python server.py). You will see:
+Open your browser at **http://localhost:7860** . You will see:
 - The live DOOM game viewport autonomously navigated by the 139,248-neuron connectome.
 - The interactive 3D WebGL connectome visualizer rendering the active firing dynamics of the brain in real time.
 - Real-time biological circuit activity meters (Optic Lobes, Central Complex, Mushroom Body, Descending Motor pool, Whole Brain).
