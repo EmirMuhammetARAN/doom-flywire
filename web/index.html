@@ -500,72 +500,61 @@
         </div>
       </div>
 
-      <!-- Color-coded Anatomical Regions Chips -->
+      <!-- Color-coded Anatomical Circuit Legend -->
       <div class="region-chips-grid">
-        <div class="region-chip" style="border-left: 3px solid var(--accent-blue);">
+        <div id="chipOpticL" class="region-chip" style="border-left: 3px solid var(--accent-blue);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-blue);"></div>
               <span>Optic Left</span>
             </div>
-            <span id="rateOpticL" class="chip-val">0.00</span>
+            <span class="chip-sub">39k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterOpticL" class="progress-fill" style="width:0%; background:var(--accent-blue);"></div></div>
         </div>
-
-        <div class="region-chip" style="border-left: 3px solid var(--accent-cyan);">
+        <div id="chipOpticR" class="region-chip" style="border-left: 3px solid var(--accent-cyan);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-cyan);"></div>
               <span>Optic Right</span>
             </div>
-            <span id="rateOpticR" class="chip-val">0.00</span>
+            <span class="chip-sub">39k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterOpticR" class="progress-fill" style="width:0%; background:var(--accent-cyan);"></div></div>
         </div>
-
-        <div class="region-chip" style="border-left: 3px solid var(--accent-purple);">
+        <div id="chipCX" class="region-chip" style="border-left: 3px solid var(--accent-purple);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-purple);"></div>
               <span>Central Complex</span>
             </div>
-            <span id="rateCX" class="chip-val">0.00</span>
+            <span class="chip-sub">2.8k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterCX" class="progress-fill" style="width:0%; background:var(--accent-purple);"></div></div>
         </div>
-
-        <div class="region-chip" style="border-left: 3px solid var(--accent-pink);">
+        <div id="chipKC" class="region-chip" style="border-left: 3px solid var(--accent-pink);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-pink);"></div>
               <span>Mushroom Body</span>
             </div>
-            <span id="rateKC" class="chip-val">0.00</span>
+            <span class="chip-sub">5.1k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterKC" class="progress-fill" style="width:0%; background:var(--accent-pink);"></div></div>
         </div>
-
-        <div class="region-chip" style="border-left: 3px solid var(--accent-emerald);">
+        <div id="chipDN" class="region-chip" style="border-left: 3px solid var(--accent-emerald);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-emerald);"></div>
               <span>Descending Motor</span>
             </div>
-            <span id="rateDN" class="chip-val">0.00</span>
+            <span class="chip-sub">1.3k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterDN" class="progress-fill" style="width:0%; background:var(--accent-emerald);"></div></div>
         </div>
-
-        <div class="region-chip" style="border-left: 3px solid var(--accent-amber);">
+        <div id="chipWhole" class="region-chip" style="border-left: 3px solid var(--accent-amber);">
           <div class="chip-header">
             <div class="chip-title-wrap">
               <div class="chip-dot" style="background:var(--accent-amber);"></div>
               <span>Whole Brain</span>
             </div>
-            <span id="rateWhole" class="chip-val">0.00</span>
+            <span class="chip-sub">139k</span>
           </div>
-          <div class="progress-track" style="height:4px;"><div id="meterWhole" class="progress-fill" style="width:0%; background:var(--accent-amber);"></div></div>
         </div>
       </div>
     </div>
@@ -825,20 +814,20 @@
         console.log("Loaded all 139,248 FlyWire neurons: Pure direct model visualizer ready!");
         if (ldr) ldr.style.display = "none";
 
-        // Enable interactive click-to-test on region chips
+        // Enable interactive click-to-test on region legend chips
         const chipBinds = [
-          { id: "meterOpticL", trigger: () => { targetOptL = 1.0; } },
-          { id: "meterOpticR", trigger: () => { targetOptR = 1.0; } },
-          { id: "meterCX",     trigger: () => { targetCX = 1.0; } },
-          { id: "meterKC",     trigger: () => { targetKC = 1.0; } },
-          { id: "meterDN",     trigger: () => { targetDN = 1.0; } },
-          { id: "meterWhole",  trigger: () => { targetWhole = 1.0; } }
+          { id: "chipOpticL", trigger: () => { targetOptL = 1.0; } },
+          { id: "chipOpticR", trigger: () => { targetOptR = 1.0; } },
+          { id: "chipCX",     trigger: () => { targetCX = 1.0; } },
+          { id: "chipKC",     trigger: () => { targetKC = 1.0; } },
+          { id: "chipDN",     trigger: () => { targetDN = 1.0; } },
+          { id: "chipWhole",  trigger: () => { targetWhole = 1.0; } }
         ];
         chipBinds.forEach(b => {
           const el = document.getElementById(b.id);
-          if (el && el.parentElement && el.parentElement.parentElement) {
-            el.parentElement.parentElement.style.cursor = "pointer";
-            el.parentElement.parentElement.onclick = b.trigger;
+          if (el) {
+            el.style.cursor = "pointer";
+            el.onclick = b.trigger;
           }
         });
 
@@ -1001,24 +990,11 @@
           targetDN   = dnAvg;
           targetWhole = whole;
 
-          // Update Regional Numerical Gauges and Progress Bars directly from model
-          document.getElementById("rateOpticL").innerText = optL.toFixed(2);
-          document.getElementById("meterOpticL").style.width = Math.round(Math.min(1.0, optL) * 100) + "%";
 
-          document.getElementById("rateOpticR").innerText = optR.toFixed(2);
-          document.getElementById("meterOpticR").style.width = Math.round(Math.min(1.0, optR) * 100) + "%";
 
-          document.getElementById("rateCX").innerText = cx.toFixed(2);
-          document.getElementById("meterCX").style.width = Math.round(Math.min(1.0, cx) * 100) + "%";
 
-          document.getElementById("rateKC").innerText = kc.toFixed(2);
-          document.getElementById("meterKC").style.width = Math.round(Math.min(1.0, kc) * 100) + "%";
 
-          document.getElementById("rateDN").innerText = dnAvg.toFixed(2);
-          document.getElementById("meterDN").style.width = Math.round(Math.min(1.0, dnAvg) * 100) + "%";
 
-          document.getElementById("rateWhole").innerText = whole.toFixed(2);
-          document.getElementById("meterWhole").style.width = Math.round(Math.min(1.0, whole) * 100) + "%";
 
           // Light up Circuit Pipeline nodes dynamically from genuine neural firing
           document.getElementById("pipeRetina").classList.toggle("active", true);
