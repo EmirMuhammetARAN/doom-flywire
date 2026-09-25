@@ -800,7 +800,7 @@
           { key: "cx",     color: 0xb840ff, size: 1.15, opacity: 0.12, buf: buffers.cx },     // Cosmic Violet
           { key: "kc",     color: 0xff2685, size: 1.10, opacity: 0.12, buf: buffers.kc },     // Magenta Pink
           { key: "dn",     color: 0x14ff33, size: 1.25, opacity: 0.15, buf: buffers.dn },     // Laser Lime Green
-          { key: "cb",     color: 0xffbf1a, size: 0.65, opacity: 0.05, buf: buffers.cb },     // Warm Amber
+          { key: "cb",     color: 0xffd000, size: 0.85, opacity: 0.08, buf: buffers.cb },     // Warm Amber
           { key: "in",     color: 0x475569, size: 0.50, opacity: 0.02, buf: buffers.in }      // Slate Scaffold
         ];
 
@@ -831,7 +831,8 @@
           { id: "meterOpticR", trigger: () => { targetOptR = 1.0; } },
           { id: "meterCX",     trigger: () => { targetCX = 1.0; } },
           { id: "meterKC",     trigger: () => { targetKC = 1.0; } },
-          { id: "meterDN",     trigger: () => { targetDN = 1.0; } }
+          { id: "meterDN",     trigger: () => { targetDN = 1.0; } },
+          { id: "meterWhole",  trigger: () => { targetWhole = 1.0; } }
         ];
         chipBinds.forEach(b => {
           const el = document.getElementById(b.id);
@@ -891,8 +892,12 @@
         regionPoints.dn.material.opacity = 0.15 + liveDN * 0.40;
       }
       if (regionPoints.cb) {
-        regionPoints.cb.material.size = 0.65 + liveWhole * 0.6;
-        regionPoints.cb.material.opacity = 0.05 + liveWhole * 0.12;
+        regionPoints.cb.material.size = 0.85 + liveWhole * 1.5;
+        regionPoints.cb.material.opacity = 0.08 + liveWhole * 0.35;
+      }
+      if (regionPoints.in) {
+        regionPoints.in.material.size = 0.55 + liveWhole * 0.6;
+        regionPoints.in.material.opacity = 0.02 + liveWhole * 0.10;
       }
 
       if (renderer && scene && camera) {
