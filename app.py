@@ -145,9 +145,8 @@ def _patched_create_app(*args, **kwargs):
             await websocket.close()
             return
 
-        agent.is_running = True
         fps_base = 25.0
-        speed_state = [1.0]
+        frame_interval = 1.0 / fps_base
 
         async def reader():
             try:
@@ -159,10 +158,6 @@ def _patched_create_app(*args, **kwargs):
                         agent.update_sandbox(msg.get("params", {}))
                     elif kind in ("reset", "start"):
                         agent.reset_episode()
-                    elif kind == "toggle_pause":
-                        agent.toggle_pause()
-                    elif kind == "set_speed":
-                        speed_state[0] = max(0.25, min(3.0, float(msg.get("speed", 1.0))))
             except Exception:
                 pass
 
@@ -171,7 +166,7 @@ def _patched_create_app(*args, **kwargs):
         try:
             while True:
                 t0 = time.perf_counter()
-                fi = (1.0 / fps_base) / speed_state[0]
+                fi = frame_interval
 
                 data = await asyncio.to_thread(agent.step)
                 if not data:

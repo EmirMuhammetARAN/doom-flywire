@@ -84,9 +84,17 @@ class DoomConnectomeAgent:
         self.total_kills = 0
         self.episode_reward = 0.0
         self.total_reward = 0.0
-        self.is_running = True
         self.is_game_over = False
-        self.last_frame_b64 = ""
+
+        # Capture initial frame immediately so last_frame_b64 is never empty
+        init_state = self.game.get_state()
+        if init_state is not None:
+            pil_img = Image.fromarray(init_state.screen_buffer)
+            buf = io.BytesIO()
+            pil_img.save(buf, format="JPEG", quality=65)
+            self.last_frame_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+        else:
+            self.last_frame_b64 = ""
 
     def update_sandbox(self, params_dict: dict):
         """Allows live adjustments of biophysical simulation parameters."""
@@ -102,13 +110,7 @@ class DoomConnectomeAgent:
         self.engine.reset_state()
         self.episode_reward = 0.0
         self.episode_kills = 0
-        self.is_running = True
         self.is_game_over = False
-
-    def toggle_pause(self) -> bool:
-        """Toggles manual pause state."""
-        self.is_running = not self.is_running
-        return self.is_running
 
     def step(self) -> dict:
         """
@@ -126,27 +128,16 @@ class DoomConnectomeAgent:
             self.episode_kills = 0
             self.is_game_over = False
 
-        if not self.is_running:
-            return {
-                "step": self.step_count,
-                "reward": 0.0,
-                "episode_reward": self.episode_reward,
-                "total_reward": self.total_reward,
-                "health": 100,
-                "ammo": 999,
-                "kills": self.episode_kills,
-                "total_kills": self.total_kills,
-                "is_game_over": False,
-                "is_running": False,
-                "telemetry": self.engine.get_telemetry(),
-                "action_taken": [],
-                "action_probs": {"TURN_LEFT": 0.0, "TURN_RIGHT": 0.0, "ATTACK": 0.0},
-                "frame_b64": self.last_frame_b64
-            }
-
         state = self.game.get_state()
         if state is None:
-            return {}
+            self.game.new_episode()
+            try:
+                self.game.send_game_command("sv_infiniteammo 1")
+            except Exception:
+                pass
+            state = self.game.get_state()
+            if state is None:
+                return {}
 
         # 1. Visual Perception (Compound Eye & Target Tracking)
         screen_rgb = state.screen_buffer  # (H, W, 3) RGB
@@ -180,7 +171,6 @@ class DoomConnectomeAgent:
             self.episode_kills = 0
             self.episode_reward = 0.0
             self.is_game_over = False
-            self.is_running = True
 
         # Encode crisp 640x480 frame as lightweight JPEG base64
         pil_img = Image.fromarray(screen_rgb)
@@ -198,7 +188,6 @@ class DoomConnectomeAgent:
             "ammo": ammo,
             "kills": kills,
             "is_game_over": self.is_game_over,
-            "is_running": self.is_running,
             "telemetry": telemetry,
             "visual_meta": visual_meta,
             "action_taken": [name for name, val in zip(self.decoder.available_actions, action_binary) if val == 1],

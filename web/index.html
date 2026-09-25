@@ -462,18 +462,7 @@
         </div>
       </div>
 
-      <!-- Controls & Simulation Speed -->
-      <div class="controls-bar">
-        <button id="btnPlayPause" class="btn-action">⏸️ PAUSE</button>
-        <div class="speed-btn-group">
-          <span style="font-size:0.75rem; color:var(--text-muted); font-family:'JetBrains Mono';">Speed:</span>
-          <button class="speed-btn btn-action" data-speed="0.5">0.5x</button>
-          <button class="speed-btn btn-action" data-speed="1.0" style="background:var(--accent-cyan); color:#000;">1.0x</button>
-          <button class="speed-btn btn-action" data-speed="1.5">1.5x</button>
-          <button class="speed-btn btn-action" data-speed="2.0">2.0x</button>
-        </div>
       </div>
-    </div>
 
     <!-- RIGHT: 3D FlyWire Connectome Neural Activity Visualizer -->
     <div class="glass-card">
@@ -489,12 +478,12 @@
         </div>
         <div style="position:absolute; bottom:12px; left:14px; right:14px; display:flex; justify-content:space-between; align-items:center; z-index:10; pointer-events:none;">
           <span style="font-family:'JetBrains Mono'; font-size:0.68rem; color:var(--text-muted); background:rgba(0,0,0,0.6); padding:3px 8px; border-radius:4px;">
-            🖱️ Rotate • Scroll: Zoom • Right-Click: Pan
+            Rotate • Scroll: Zoom • Right-Click: Pan
           </span>
           <div style="display:flex; gap:6px;">
             
             <button id="btnResetView" style="pointer-events:auto; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#fff; font-family:'JetBrains Mono'; font-size:0.68rem; padding:4px 10px; border-radius:4px; cursor:pointer;">
-              🔄 Reset
+              ↺ Reset View
             </button>
           </div>
         </div>
@@ -562,8 +551,7 @@
 
   <script>
     let ws = null;
-    let isPaused = false;
-    const doomCanvas = document.getElementById("doomCanvas");
+        const doomCanvas = document.getElementById("doomCanvas");
     const container3D = document.getElementById("brain3DContainer");
 
     // Real-time telemetry cache
@@ -846,7 +834,7 @@
 
       if (controls && controls.update) {
         if (controls.autoRotate !== undefined) {
-          controls.autoRotate = !isPaused;
+          controls.autoRotate = false;
         }
         controls.update();
       }
@@ -928,19 +916,8 @@
         const data = JSON.parse(event.data);
 
         // Update DOOM image
-        if (data.frame_b64) {
-          doomCanvas.src = "data:image/jpeg;base64," + data.frame_b64;
-        }
-
-        // Sync Running / Paused State with server
-        if (data.is_running !== undefined) {
-          isPaused = !data.is_running;
-          const ppBtn = document.getElementById("btnPlayPause");
-          if (ppBtn) {
-            ppBtn.innerText = isPaused ? "▶️ RESUME" : "⏸️ PAUSE";
-            ppBtn.style.background = isPaused ? "var(--accent-amber)" : "";
-            ppBtn.style.color = isPaused ? "#000" : "";
-          }
+        if (data.frame_b64 && data.frame_b64.length > 50) {
+          doomCanvas.src = 'data:image/jpeg;base64,' + data.frame_b64;
         }
 
         // Update HUD
@@ -1005,34 +982,6 @@
         }
       };
     }
-
-    // Play / Pause Toggle
-    const playPauseBtn = document.getElementById("btnPlayPause");
-    if (playPauseBtn) {
-      playPauseBtn.onclick = () => {
-        isPaused = !isPaused;
-        playPauseBtn.innerText = isPaused ? "▶️ RESUME" : "⏸️ PAUSE";
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "toggle_pause" }));
-        }
-      };
-    }
-
-    // Speed Selector Buttons
-    document.querySelectorAll(".speed-btn").forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll(".speed-btn").forEach(b => {
-          b.style.background = "rgba(255, 255, 255, 0.06)";
-          b.style.color = "var(--text-main)";
-        });
-        btn.style.background = "var(--accent-cyan)";
-        btn.style.color = "#000";
-        const spd = parseFloat(btn.dataset.speed);
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "set_speed", speed: spd }));
-        }
-      };
-    });
 
     // Connect WebSocket stream immediately (zero delay, fully decoupled)
     connectWebSocket();
