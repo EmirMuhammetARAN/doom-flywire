@@ -266,17 +266,8 @@ class ConnectomeEngine:
         # 6. Apply anatomical lesion mask (killed circuits output 0.0)
         self.act = raw_act * self.lesion_mask
 
-        # Slow homeostatic adaptation (tracks long-term baseline drift, tau ~ 20s)
-        alpha = 0.003
-        self.baseline["optic_left"] = (1.0 - alpha) * self.baseline["optic_left"] + alpha * float(self.act[self.t_optic_left].mean().item())
-        self.baseline["optic_right"] = (1.0 - alpha) * self.baseline["optic_right"] + alpha * float(self.act[self.t_optic_right].mean().item())
-        self.baseline["central_complex"] = (1.0 - alpha) * self.baseline["central_complex"] + alpha * float(self.act[self.t_cx].mean().item())
-        self.baseline["mushroom_body"] = (1.0 - alpha) * self.baseline["mushroom_body"] + alpha * float(self.act[self.t_kc].mean().item())
-        self.baseline["descending_left"] = (1.0 - alpha) * self.baseline["descending_left"] + alpha * float(self.act[self.t_dn_left].mean().item())
-        self.baseline["descending_right"] = (1.0 - alpha) * self.baseline["descending_right"] + alpha * float(self.act[self.t_dn_right].mean().item())
-        self.baseline["whole_brain"] = (1.0 - alpha) * self.baseline["whole_brain"] + alpha * float(self.act.mean().item())
-
         # 7. Compute regional telemetry for real-time dashboard
+        # (Uses true biophysical resting baseline calibrated at startup, without erosive per-frame decay)
         telemetry = self.get_telemetry()
         return self.act, telemetry
 
@@ -303,8 +294,12 @@ class ConnectomeEngine:
             is_seizure = bool(cur_whole > 0.65 or (self.params["gaba_gain"] < 0.25 and cur_whole > 0.50))
 
             floor = 0.06
-            scale_optic = 16.0
-            scale_deep = 25.0
+            # Calibrated biophysical gains matching actual population ensemble sensitivities
+            scale_optic = 14.0  # Optic lobes (39k neurons each): deltas up to ~0.055
+            scale_cx    = 90.0  # Central Complex (2.8k neurons): deltas up to ~0.008
+            scale_kc    = 70.0  # Mushroom Body (5.1k neurons): deltas up to ~0.008
+            scale_dn    = 90.0  # Descending Motor (1.3k neurons): deltas up to ~0.008
+            scale_whole = 18.0  # Whole Brain (139k neurons): deltas up to ~0.045
 
             def norm(cur: float, base: float, scale: float, lesioned: bool) -> float:
                 if lesioned:
@@ -313,11 +308,11 @@ class ConnectomeEngine:
 
             norm_opt_l = norm(cur_opt_l, self.baseline["optic_left"], scale_optic, self.params["lesion_optic_left"])
             norm_opt_r = norm(cur_opt_r, self.baseline["optic_right"], scale_optic, self.params["lesion_optic_right"])
-            norm_cx    = norm(cur_cx, self.baseline["central_complex"], scale_deep, self.params["lesion_central_complex"])
-            norm_kc    = norm(cur_kc, self.baseline["mushroom_body"], scale_deep, self.params["lesion_mushroom_body"])
-            norm_dn_l  = norm(cur_dn_l, self.baseline["descending_left"], scale_deep, self.params["lesion_descending_left"])
-            norm_dn_r  = norm(cur_dn_r, self.baseline["descending_right"], scale_deep, self.params["lesion_descending_right"])
-            norm_whole = norm(cur_whole, self.baseline["whole_brain"], scale_optic, False)
+            norm_cx    = norm(cur_cx, self.baseline["central_complex"], scale_cx, self.params["lesion_central_complex"])
+            norm_kc    = norm(cur_kc, self.baseline["mushroom_body"], scale_kc, self.params["lesion_mushroom_body"])
+            norm_dn_l  = norm(cur_dn_l, self.baseline["descending_left"], scale_dn, self.params["lesion_descending_left"])
+            norm_dn_r  = norm(cur_dn_r, self.baseline["descending_right"], scale_dn, self.params["lesion_descending_right"])
+            norm_whole = norm(cur_whole, self.baseline["whole_brain"], scale_whole, False)
 
         return {
             "optic_left": round(norm_opt_l, 2),
