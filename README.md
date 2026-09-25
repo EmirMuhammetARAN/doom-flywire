@@ -1,20 +1,9 @@
----
-title: DOOM-FlyWire Connectome
-emoji: 🪰
-colorFrom: purple
-colorTo: green
-sdk: gradio
-app_file: app.py
-pinned: false
-license: mit
----
-
 # 🪰 DOOM-FlyWire: 139,248-Neuron Biological Connectome Autonomous Agent & 3D Real-Time Visualizer
 
 [![Connectome: FlyWire Nature 2024](https://img.shields.io/badge/Connectome-FlyWire%20(Nature%202024)-00f5d4.svg)](https://flywire.ai)
 [![Environment: ViZDoom](https://img.shields.io/badge/Environment-ViZDoom%20(ZDoom%20RL)-ff0055.svg)](https://vizdoom.farama.org)
 [![Scale: 100% Unreduced](https://img.shields.io/badge/Scale-139%2C248%20Neurons%20%7C%2015.1M%20Synapses-blueviolet.svg)](#-system-architecture)
-[![Performance: 200+ FPS](https://img.shields.io/badge/Performance-200%2B%20FPS%20(SpMV)-76b900.svg)](#-biophysical-engine--performance)
+[![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Live%20Demo-yellow.svg)](https://huggingface.co/spaces/emiraran/doom-flywire)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 A real-time, closed-loop biological digital twin running the complete, unreduced adult *Drosophila melanogaster* whole-brain connectome ([FlyWire Consortium, *Nature* 2024](https://www.nature.com/articles/s41586-024-07558-y): **139,248 neurons, 15,090,883 directed synapses**) as an autonomous agent playing **DOOM** ([ViZDoom](https://vizdoom.farama.org/)).
@@ -36,39 +25,39 @@ The project features a real-time, browser-based **3D Connectome Neural Activity 
 
 ## 🧠 System Architecture
 
-`
+```text
                           [ViZDoom Game Engine]
                            (320x240 RGB Screen)
-                                    |
-                                    | Raw Pixels
-                                    v
-          +---------------------------------------------------+
-          |     Compound Eye Retinotopy & Motion Encoder      |
-          |  - 32x32 Ommatidia Array (1,024 optical facets)   |
-          |  - Elementary Motion Detection (T4/T5 Columns)    |
-          |  - Lobula Columnar (LC) Target Tracking           |
-          +---------------------------------------------------+
-                                    |
-                                    | Injected Photoreceptor Current
-                                    v
-          +---------------------------------------------------+
-          |     100% FlyWire Whole-Brain Connectome           |
-          |  - 139,248 Biological Neurons                     |
-          |  - 15,090,883 Directed Synapses (ACh, GABA, Glu)  |
-          |  - Leaky Integrate-and-Fire Dynamic Integration   |
-          +---------------------------------------------------+
-                                    |
-                                    | Population Firing of Descending Neurons
-                                    v
-          +---------------------------------------------------+
-          |                   Motor Decoder                   |
-          |  - DN_Left vs DN_Right -> Continuous Steering     |
-          |  - Bilateral Motor Vigor + Target Lock -> Attack  |
-          +---------------------------------------------------+
-                                    |
-                                    v
+                                    │
+                                    │ Raw Pixels
+                                    ▼
+          ┌───────────────────────────────────────────────────┐
+          │     Compound Eye Retinotopy & Motion Encoder      │
+          │  - 32x32 Ommatidia Array (1,024 optical facets)   │
+          │  - Elementary Motion Detection (T4/T5 Columns)    │
+          │  - Lobula Columnar (LC) Target Tracking           │
+          └───────────────────────────────────────────────────┘
+                                    │
+                                    │ Injected Photoreceptor Current (I_sensory)
+                                    ▼
+          ┌───────────────────────────────────────────────────┐
+          │     100% FlyWire Whole-Brain Connectome           │
+          │  - 139,248 Biological Neurons                     │
+          │  - 15,090,883 Directed Synapses (ACh, GABA, Glu)  │
+          │  - Leaky Integrate-and-Fire Dynamic Integration   │
+          └───────────────────────────────────────────────────┘
+                                    │
+                                    │ Population Firing of Descending Neurons
+                                    ▼
+          ┌───────────────────────────────────────────────────┐
+          │                   Motor Decoder                   │
+          │  - DN_Left vs DN_Right -> Continuous Steering     │
+          │  - Bilateral Motor Vigor + Target Lock -> Attack  │
+          └───────────────────────────────────────────────────┘
+                                    │
+                                    ▼
                          [Execute Action in DOOM]
-`
+```
 
 ---
 
@@ -76,12 +65,12 @@ The project features a real-time, browser-based **3D Connectome Neural Activity 
 
 The simulator implements continuous-time leaky rate dynamics over sparse matrix-vector multiplication (SpMV):
 
-`
+```python
 I_syn[t] = W_syn @ act[t]
 I_tot[t] = I_syn[t] * gain + I_sensory[t] + noise
 V[t+1]   = (1 - leak_rate) * V[t] + I_tot[t]
 act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
-`
+```
 
 - **Graph Memory:** ~60.4 MB for 15,090,883 sparse signed synapses.
 - **Pure Tensor Propagation:** Zero heuristic if-else overrides in neural dynamics; motor commands are purely linear and softmax population readouts from descending motor neurons.
@@ -91,12 +80,10 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 
 ## 📁 Repository Structure
 
-`
+```text
 .
 ├── data/
-│   ├── Supplemental_file1_neuron_annotations.tsv   # FlyWire 139,248 neuron annotations
-│   ├── proofread_connections_783.feather           # 15,090,883 directed synapses
-│   └── connectome_cache.pt                         # Pre-built PyTorch sparse graph tensor
+│   └── connectome_cache.pt                         # Pre-built PyTorch sparse graph tensor (Git LFS)
 ├── src/
 │   ├── __init__.py                                 # Package exports
 │   ├── graph_loader.py                             # Fast FlyWire connectome loader
@@ -105,9 +92,12 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 │   ├── motor_decoder.py                            # Descending neuron population motor decoder
 │   └── doom_agent.py                               # Closed-loop ViZDoom connectome agent
 ├── web/
-│   ├── js/                                         # Local Three.js and OrbitControls
+│   ├── js/                                         # Three.js and OrbitControls
 │   ├── brain_139k_pos.bin                          # 139,248 neuron 3D coordinates (1.67 MB)
 │   ├── brain_139k_col.bin                          # 139,248 neuron anatomical colors (417 KB)
+│   ├── brain_anatomy.json                          # Regional circuit boundaries
+│   ├── brain_anatomy_3d.json                       # 3D spatial regions
+│   ├── synapses_top5k.bin                          # Top 5,000 anatomical synaptic tracts
 │   └── index.html                                  # 3D Connectome and Live Action Dashboard
 ├── app.py                                          # Hugging Face Space & Gradio entry point
 ├── .gitattributes                                  # Git LFS binary tracking
@@ -116,7 +106,7 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 ├── requirements.txt                                # Python dependencies
 ├── LICENSE                                         # MIT License
 └── README.md
-`
+```
 
 ---
 
@@ -124,24 +114,30 @@ act[t+1] = sigmoid((V[t+1] - firing_threshold) * 5.0)
 
 ### 1. Prerequisites & Environment
 Ensure you have Python 3.10+:
-`ash
+
+```bash
 git clone https://github.com/EmirMuhammetARAN/doom-flywire.git
 cd doom-flywire
 
 # Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scriptsctivate
+# On Linux/macOS:
+source .venv/bin/activate
+# On Windows:
+.venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
-`
+```
 
 ### 2. Launch the Web Application
 Start the application server:
-`ash
+
+```bash
 python app.py
-`
-Open your browser at **http://localhost:7860** . You will see:
+```
+
+Open your browser at **http://localhost:7860**. You will see:
 - The live DOOM game viewport autonomously navigated by the 139,248-neuron connectome.
 - The interactive 3D WebGL connectome visualizer rendering the active firing dynamics of the brain in real time.
 - Real-time biological circuit activity meters (Optic Lobes, Central Complex, Mushroom Body, Descending Motor pool, Whole Brain).
@@ -150,11 +146,11 @@ Open your browser at **http://localhost:7860** . You will see:
 
 ## 📚 References & Scientific Citations
 
-1. **FlyWire Whole-Brain Connectome:**
+1. **FlyWire Whole-Brain Connectome:**  
    Dorkenwald, S., Matsliah, A., Sterling, P., et al. (2024). *Neuronal wiring diagram of an adult brain*. **Nature**, 634, 124–138.
-2. **ViZDoom RL Platform:**
+2. **ViZDoom RL Platform:**  
    Wydmuch, M., Kempka, M., & Jaśkowski, W. (2018). *ViZDoom Competitions: Playing Doom from Pixels*. **IEEE Transactions on Games**, 11(3), 248–258.
-3. **Drosophila Motion Vision (T4/T5 Circuits):**
+3. **Drosophila Motion Vision (T4/T5 Circuits):**  
    Maisak, M. S., Haag, J., Ammer, G., et al. (2013). *A directional tuning map of Drosophila elementary motion detectors*. **Nature**, 500(7461), 212–216.
-4. **Central Complex Navigation & Heading Compass:**
+4. **Central Complex Navigation & Heading Compass:**  
    Seelig, J. D., & Jayaraman, V. (2015). *Neural dynamics for landmark orientation and angular path integration*. **Nature**, 521(7551), 186–191.
