@@ -307,45 +307,7 @@
       color: var(--text-muted);
     }
 
-    /* Circuit Transmission Pipeline */
-    .circuit-pipeline {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 6px;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-top: 14px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-    }
 
-    .pipeline-node {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 2px;
-      padding: 4px 8px;
-      border-radius: 4px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      transition: all 0.15s ease;
-    }
-
-    .pipeline-node.active {
-      border-color: var(--accent-cyan);
-      background: rgba(0, 245, 212, 0.12);
-      box-shadow: 0 0 10px rgba(0, 245, 212, 0.3);
-      color: var(--accent-cyan);
-    }
-
-    .pipeline-arrow {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-      animation: pulse 1s infinite alternate;
-    }
 
     /* Controls Bar */
     .controls-bar {
@@ -442,28 +404,7 @@
         </div>
       </div>
 
-      <!-- Circuit Transmission Pipeline -->
-      <div class="circuit-pipeline">
-        <div id="pipeRetina" class="pipeline-node active">
-          <span>RETINA</span>
-        </div>
-        <span class="pipeline-arrow">➔</span>
-        <div id="pipeOptic" class="pipeline-node">
-          <span>OPTIC</span>
-        </div>
-        <span class="pipeline-arrow">➔</span>
-        <div id="pipeCompass" class="pipeline-node">
-          <span>COMPASS</span>
-        </div>
-        <span class="pipeline-arrow">➔</span>
-        <div id="pipeMotor" class="pipeline-node">
-          <span>MOTOR</span>
-        </div>
-        <span class="pipeline-arrow">➔</span>
-        <div id="pipeAction" class="pipeline-node">
-          <span>ACTION</span>
-        </div>
-      </div>
+
 
       </div>
 
@@ -844,11 +785,7 @@
     const elPctRight = document.getElementById("pctRight");
     const elBarAtk = document.getElementById("barAttack");
     const elPctAtk = document.getElementById("pctAttack");
-    const elPipeRetina = document.getElementById("pipeRetina");
-    const elPipeOptic = document.getElementById("pipeOptic");
-    const elPipeCompass = document.getElementById("pipeCompass");
-    const elPipeMotor = document.getElementById("pipeMotor");
-    const elPipeAction = document.getElementById("pipeAction");
+
 
     // Decoupled packet buffer for buttery-smooth 60fps rendering without layout thrashing
     let latestPacket = null;
@@ -949,11 +886,7 @@
           targetDN   = dnAvg;
           targetWhole = whole;
 
-          if (elPipeRetina) elPipeRetina.classList.toggle("active", true);
-          if (elPipeOptic) elPipeOptic.classList.toggle("active", (optL > 0.25 || optR > 0.25));
-          if (elPipeCompass) elPipeCompass.classList.toggle("active", (cx > 0.22));
-          if (elPipeMotor) elPipeMotor.classList.toggle("active", (dnAvg > 0.22));
-          if (elPipeAction) elPipeAction.classList.toggle("active", (data.action_taken && data.action_taken.length > 0));
+
         }
       }
 

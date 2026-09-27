@@ -120,15 +120,17 @@ async def _singleton_game_loop():
     if agent is None:
         return
 
-    fps_base = 22.0
+    fps_base = 35.0
     frame_interval = 1.0 / fps_base
     last_log_time = 0.0
+    last_frame_time = time.perf_counter()
 
     while True:
         try:
             if not _active_websockets:
                 # No active visitors: sleep to conserve resources
                 await asyncio.sleep(0.5)
+                last_frame_time = time.perf_counter()
                 continue
 
             t0 = time.perf_counter()
@@ -137,9 +139,12 @@ async def _singleton_game_loop():
                 await asyncio.sleep(0.01)
                 continue
 
-            dt = time.perf_counter() - t0
-            fps = round(1.0 / max(dt, 1e-4), 1)
-            data["instant_fps"] = fps
+            # Real continuous delivery FPS matching native DOOM 35 FPS
+            now = time.perf_counter()
+            dt_stream = now - last_frame_time
+            last_frame_time = now
+            fps = round(1.0 / max(dt_stream, 1e-4), 1)
+            data["instant_fps"] = min(fps, 35.0)
 
             # Live telemetry logger (flushes every 2s so Hugging Face web log console displays it in real time)
             now = time.perf_counter()
