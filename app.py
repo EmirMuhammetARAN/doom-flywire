@@ -87,9 +87,7 @@ def _get_agent():
         if _agent is not None:
             return _agent
         try:
-            import torch
             from src.doom_agent import DoomConnectomeAgent
-            # Run on CPU for smooth, continuous live streaming without ZeroGPU quota limits or emulation traps
             print("[Agent] Initializing DoomConnectomeAgent on cpu...")
             _agent = DoomConnectomeAgent(
                 scenario_name="defend_the_center.cfg",
@@ -102,6 +100,65 @@ def _get_agent():
             _agent_error = str(exc)
             print(f"[Agent] Init failed: {exc}")
             return None
+
+
+# --- Singleton Broadcaster State ---
+_active_websockets = set()
+_game_loop_task = None
+_loop_lock = asyncio.Lock()
+
+
+async def _singleton_game_loop():
+    """
+    Dedicated single-threaded game propagation loop:
+    - Guarantees agent.step() is called sequentially (thread-safe for ViZDoom & PyTorch).
+    - Idles gracefully when no clients are connected to save cloud CPU/RAM.
+    - Broadcasts the exact same live simulation frame to all concurrent visitors.
+    """
+    agent = _get_agent()
+    if agent is None:
+        return
+
+    fps_base = 25.0
+    frame_interval = 1.0 / fps_base
+
+    while True:
+        try:
+            if not _active_websockets:
+                # No active visitors: sleep to conserve resources
+                await asyncio.sleep(0.5)
+                continue
+
+            t0 = time.perf_counter()
+            data = await asyncio.to_thread(agent.step)
+            if not data:
+                await asyncio.sleep(0.01)
+                continue
+
+            dt = time.perf_counter() - t0
+            data["instant_fps"] = round(1.0 / max(dt, 1e-4), 1)
+
+            # Broadcast frame to all active connections
+            dead = set()
+            for ws in list(_active_websockets):
+                try:
+                    await ws.send_json(data)
+                except Exception:
+                    dead.add(ws)
+
+            if dead:
+                _active_websockets.difference_update(dead)
+
+            elapsed = time.perf_counter() - t0
+            slack = frame_interval - elapsed
+            if slack > 0:
+                await asyncio.sleep(slack)
+            else:
+                await asyncio.sleep(0.001)
+
+        except Exception as exc:
+            print(f"[GameLoop Error] {exc}")
+            await asyncio.sleep(0.05)
 
 
 # --- FastAPI Route Injection ---
@@ -134,8 +191,9 @@ def _patched_create_app(*args, **kwargs):
     async def three_page(request): return _serve(os.path.join("js", "three.min.js"), "application/javascript")
     async def orbit_page(request): return _serve(os.path.join("js", "OrbitControls.js"), "application/javascript")
 
-    # --- WebSocket Game Stream ---
+    # --- WebSocket Game Stream (Multiplexed Broadcaster) ---
     async def ws_game(websocket: WebSocket):
+        global _game_loop_task
         await websocket.accept()
         print("[WS] Client connected.")
 
@@ -145,49 +203,33 @@ def _patched_create_app(*args, **kwargs):
             await websocket.close()
             return
 
-        fps_base = 25.0
-        frame_interval = 1.0 / fps_base
+        _active_websockets.add(websocket)
 
-        async def reader():
-            try:
-                while True:
-                    raw = await websocket.receive_text()
+        # Ensure background broadcast game loop is running
+        async with _loop_lock:
+            if _game_loop_task is None or _game_loop_task.done():
+                _game_loop_task = asyncio.create_task(_singleton_game_loop())
+
+        try:
+            # Client listener loop for user commands (reset, parameter updates)
+            while True:
+                raw = await websocket.receive_text()
+                try:
                     msg = json.loads(raw)
                     kind = msg.get("type", "")
                     if kind == "update_params":
                         agent.update_sandbox(msg.get("params", {}))
                     elif kind in ("reset", "start"):
                         agent.reset_episode()
-            except Exception:
-                pass
-
-        reader_task = asyncio.create_task(reader())
-
-        try:
-            while True:
-                t0 = time.perf_counter()
-                fi = frame_interval
-
-                data = await asyncio.to_thread(agent.step)
-                if not data:
-                    await asyncio.sleep(0.01)
-                    continue
-
-                dt = time.perf_counter() - t0
-                data["instant_fps"] = round(1.0 / max(dt, 1e-4), 1)
-                await websocket.send_json(data)
-
-                elapsed = time.perf_counter() - t0
-                slack = fi - elapsed
-                if slack > 0:
-                    await asyncio.sleep(slack)
-
+                except Exception:
+                    pass
         except WebSocketDisconnect:
-            print("[WS] Client disconnected.")
-        except Exception as exc:
-            print(f"[WS Error] {exc}")
+            pass
+        except Exception:
+            pass
         finally:
-            reader_task.cancel()
+            _active_websockets.discard(websocket)
+            print("[WS] Client cleanly disconnected.")
 
     # Inject routes at the head of app.router.routes so they take precedence over everything
     custom_routes = [
