@@ -775,7 +775,6 @@
     const elAmmo = document.getElementById("hudAmmo");
     const elKills = document.getElementById("hudKills");
     const elScore = document.getElementById("hudScore");
-    const elFps = document.getElementById("fpsVal");
     const elBarLeft = document.getElementById("barLeft");
     const elPctLeft = document.getElementById("pctLeft");
     const elBarRight = document.getElementById("barRight");
@@ -851,7 +850,6 @@
         if (elAmmo) elAmmo.innerText = data.ammo || 0;
         if (elKills) elKills.innerText = data.kills || 0;
         if (elScore) elScore.innerText = (data.total_reward || 0).toFixed(1);
-        if (elFps) elFps.innerText = data.instant_fps || "0.0";
 
         if (data.action_probs) {
           const pLeft = Math.round(((data.action_probs.TURN_LEFT !== undefined ? data.action_probs.TURN_LEFT : data.action_probs.MOVE_LEFT) || 0) * 100);
