@@ -394,7 +394,10 @@
     <div class="glass-card">
       <div class="card-title">
         <span>ViZDoom Perception-Action Viewport</span>
-        <span id="stepCounter" style="font-family:'JetBrains Mono'; font-size:0.75rem; color:var(--text-muted);">Step: 0</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="background:rgba(20,255,51,0.12); border:1px solid rgba(20,255,51,0.35); color:#14ff33; padding:2px 8px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:0.75rem; font-weight:600; letter-spacing:0.5px;">⚡ <span id="fpsVal">0.0</span> FPS</span>
+          <span id="stepCounter" style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; color:var(--text-muted);">Step: 0</span>
+        </div>
       </div>
 
       <div class="viewport-container">

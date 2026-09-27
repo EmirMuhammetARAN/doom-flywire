@@ -141,13 +141,12 @@ async def _singleton_game_loop():
             fps = round(1.0 / max(dt, 1e-4), 1)
             data["instant_fps"] = fps
 
-            # Live tqdm-style in-place telemetry logger (overwrites the line with \r)
+            # Live telemetry logger (flushes every 2s so Hugging Face web log console displays it in real time)
             now = time.perf_counter()
-            if now - last_log_time >= 0.5:
+            if now - last_log_time >= 2.0:
                 step = data.get("step", 0)
                 act = data.get("action_taken", ["IDLE"])
-                sys.stdout.write(f"\r[DOOM-FlyWire] Step {step:,} | FPS: {fps:.1f} | Action: {act} | Active Viewers: {len(_active_websockets)}   ")
-                sys.stdout.flush()
+                print(f"[DOOM-FlyWire] Step {step:,} | FPS: {fps:.1f} | Action: {act} | Active Viewers: {len(_active_websockets)}", flush=True)
                 last_log_time = now
 
             # Broadcast frame to all active connections
