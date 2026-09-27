@@ -2,7 +2,7 @@
 
 [![Connectome: FlyWire Nature 2024](https://img.shields.io/badge/Connectome-FlyWire%20(Nature%202024)-00f5d4.svg)](https://flywire.ai)
 [![Environment: ViZDoom](https://img.shields.io/badge/Environment-ViZDoom%20(ZDoom%20RL)-ff0055.svg)](https://vizdoom.farama.org)
-[![Scale: 100% Unreduced](https://img.shields.io/badge/Scale-139%2C248%20Neurons%20%7C%2015.1M%20Synapses-blueviolet.svg)](#-system-architecture)
+[![Scale: 100% Unreduced](https://img.shields.io/badge/Scale-139%2C248%20Neurons%20%7C%2015.1M%20Synapses-blueviolet.svg)](#system-architecture)
 [![Hugging Face Space](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Live%20Demo-yellow.svg)](https://huggingface.co/spaces/emiraran/doom-flywire)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
