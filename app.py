@@ -119,7 +119,7 @@ async def _singleton_game_loop():
     if agent is None:
         return
 
-    fps_base = 25.0
+    fps_base = 22.0
     frame_interval = 1.0 / fps_base
 
     while True:

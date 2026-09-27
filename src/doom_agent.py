@@ -91,7 +91,7 @@ class DoomConnectomeAgent:
         if init_state is not None:
             pil_img = Image.fromarray(init_state.screen_buffer)
             buf = io.BytesIO()
-            pil_img.save(buf, format="JPEG", quality=65)
+            pil_img.save(buf, format="JPEG", quality=55)
             self.last_frame_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
         else:
             self.last_frame_b64 = ""
@@ -175,7 +175,7 @@ class DoomConnectomeAgent:
         # Encode crisp 640x480 frame as lightweight JPEG base64
         pil_img = Image.fromarray(screen_rgb)
         buffer = io.BytesIO()
-        pil_img.save(buffer, format="JPEG", quality=65)
+        pil_img.save(buffer, format="JPEG", quality=55)
         img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
         self.last_frame_b64 = img_b64
 

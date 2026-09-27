@@ -828,6 +828,29 @@
       });
     }
 
+    // Pre-cached DOM element references (eliminates 15 expensive DOM queries per frame)
+    const elStep = document.getElementById("stepCounter");
+    const elHealth = document.getElementById("hudHealth");
+    const elAmmo = document.getElementById("hudAmmo");
+    const elKills = document.getElementById("hudKills");
+    const elScore = document.getElementById("hudScore");
+    const elFps = document.getElementById("fpsVal");
+    const elBarLeft = document.getElementById("barLeft");
+    const elPctLeft = document.getElementById("pctLeft");
+    const elBarRight = document.getElementById("barRight");
+    const elPctRight = document.getElementById("pctRight");
+    const elBarAtk = document.getElementById("barAttack");
+    const elPctAtk = document.getElementById("pctAttack");
+    const elPipeRetina = document.getElementById("pipeRetina");
+    const elPipeOptic = document.getElementById("pipeOptic");
+    const elPipeCompass = document.getElementById("pipeCompass");
+    const elPipeMotor = document.getElementById("pipeMotor");
+    const elPipeAction = document.getElementById("pipeAction");
+
+    // Decoupled packet buffer for buttery-smooth 60fps rendering without layout thrashing
+    let latestPacket = null;
+    let hasNewPacket = false;
+
     // 3D Animation Render Loop (60 FPS WebGL)
     function animate3D() {
       requestAnimationFrame(animate3D);
@@ -877,6 +900,60 @@
         regionPoints.in.material.opacity = 0.02 + liveWhole * 0.10;
       }
 
+      // Process latest game frame on browser display sync (avoids frame bursts and decoder stalls)
+      if (hasNewPacket && latestPacket) {
+        hasNewPacket = false;
+        const data = latestPacket;
+
+        if (data.frame_b64 && data.frame_b64.length > 50) {
+          doomCanvas.src = 'data:image/jpeg;base64,' + data.frame_b64;
+        }
+
+        if (elStep) elStep.innerText = "Step: " + (data.step || 0);
+        if (elHealth) elHealth.innerText = data.health || 0;
+        if (elAmmo) elAmmo.innerText = data.ammo || 0;
+        if (elKills) elKills.innerText = data.kills || 0;
+        if (elScore) elScore.innerText = (data.total_reward || 0).toFixed(1);
+        if (elFps) elFps.innerText = data.instant_fps || "0.0";
+
+        if (data.action_probs) {
+          const pLeft = Math.round(((data.action_probs.TURN_LEFT !== undefined ? data.action_probs.TURN_LEFT : data.action_probs.MOVE_LEFT) || 0) * 100);
+          const pRight = Math.round(((data.action_probs.TURN_RIGHT !== undefined ? data.action_probs.TURN_RIGHT : data.action_probs.MOVE_RIGHT) || 0) * 100);
+          const pAtk = Math.round((data.action_probs.ATTACK || 0) * 100);
+
+          if (elBarLeft) elBarLeft.style.width = pLeft + "%";
+          if (elPctLeft) elPctLeft.innerText = pLeft + "%";
+          if (elBarRight) elBarRight.style.width = pRight + "%";
+          if (elPctRight) elPctRight.innerText = pRight + "%";
+          if (elBarAtk) elBarAtk.style.width = pAtk + "%";
+          if (elPctAtk) elPctAtk.innerText = pAtk + "%";
+        }
+
+        if (data.telemetry) {
+          const optL = data.telemetry.optic_left || 0.02;
+          const optR = data.telemetry.optic_right || 0.02;
+          const cx   = data.telemetry.central_complex || 0.02;
+          const kc   = data.telemetry.mushroom_body || 0.02;
+          const dnL  = data.telemetry.descending_left || 0.02;
+          const dnR  = data.telemetry.descending_right || 0.02;
+          const dnAvg = (dnL + dnR) / 2;
+          const whole = data.telemetry.whole_brain_firing || 0.05;
+
+          targetOptL = optL;
+          targetOptR = optR;
+          targetCX   = cx;
+          targetKC   = kc;
+          targetDN   = dnAvg;
+          targetWhole = whole;
+
+          if (elPipeRetina) elPipeRetina.classList.toggle("active", true);
+          if (elPipeOptic) elPipeOptic.classList.toggle("active", (optL > 0.25 || optR > 0.25));
+          if (elPipeCompass) elPipeCompass.classList.toggle("active", (cx > 0.22));
+          if (elPipeMotor) elPipeMotor.classList.toggle("active", (dnAvg > 0.22));
+          if (elPipeAction) elPipeAction.classList.toggle("active", (data.action_taken && data.action_taken.length > 0));
+        }
+      }
+
       if (renderer && scene && camera) {
         renderer.render(scene, camera);
       }
@@ -913,72 +990,11 @@
       };
 
       ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-
-        // Update DOOM image
-        if (data.frame_b64 && data.frame_b64.length > 50) {
-          doomCanvas.src = 'data:image/jpeg;base64,' + data.frame_b64;
-        }
-
-        // Update HUD
-        document.getElementById("stepCounter").innerText = "Step: " + (data.step || 0);
-        document.getElementById("hudHealth").innerText = data.health || 0;
-        document.getElementById("hudAmmo").innerText = data.ammo || 0;
-        document.getElementById("hudKills").innerText = data.kills || 0;
-        document.getElementById("hudScore").innerText = (data.total_reward || 0).toFixed(1);
-        const fpsEl = document.getElementById("fpsVal");
-        if (fpsEl) fpsEl.innerText = data.instant_fps || "0.0";
-
-        // Update Action Probabilities
-        let pLeft = 0, pRight = 0, pAtk = 0;
-        if (data.action_probs) {
-          pLeft = Math.round(((data.action_probs.TURN_LEFT !== undefined ? data.action_probs.TURN_LEFT : data.action_probs.MOVE_LEFT) || 0) * 100);
-          pRight = Math.round(((data.action_probs.TURN_RIGHT !== undefined ? data.action_probs.TURN_RIGHT : data.action_probs.MOVE_RIGHT) || 0) * 100);
-          pAtk = Math.round((data.action_probs.ATTACK || 0) * 100);
-
-          document.getElementById("barLeft").style.width = pLeft + "%";
-          document.getElementById("pctLeft").innerText = pLeft + "%";
-
-          document.getElementById("barRight").style.width = pRight + "%";
-          document.getElementById("pctRight").innerText = pRight + "%";
-
-          document.getElementById("barAttack").style.width = pAtk + "%";
-          document.getElementById("pctAttack").innerText = pAtk + "%";
-        }
-
-        // Direct 1-to-1 Biological Readout from PyTorch Connectome (ZERO IF-ELSE!)
-        if (data.telemetry) {
-          telemetry = data.telemetry;
-
-          const optL = telemetry.optic_left || 0.02;
-          const optR = telemetry.optic_right || 0.02;
-          const cx   = telemetry.central_complex || 0.02;
-          const kc   = telemetry.mushroom_body || 0.02;
-          const dnL  = telemetry.descending_left || 0.02;
-          const dnR  = telemetry.descending_right || 0.02;
-          const dnAvg = (dnL + dnR) / 2;
-          const whole = telemetry.whole_brain_firing || 0.05;
-
-          // Target values for continuous 60fps 3D shader tracking
-          targetOptL = optL;
-          targetOptR = optR;
-          targetCX   = cx;
-          targetKC   = kc;
-          targetDN   = dnAvg;
-          targetWhole = whole;
-
-
-
-
-
-
-
-          // Light up Circuit Pipeline nodes dynamically from genuine neural firing
-          document.getElementById("pipeRetina").classList.toggle("active", true);
-          document.getElementById("pipeOptic").classList.toggle("active", (optL > 0.25 || optR > 0.25));
-          document.getElementById("pipeCompass").classList.toggle("active", (cx > 0.22));
-          document.getElementById("pipeMotor").classList.toggle("active", (dnAvg > 0.22));
-          document.getElementById("pipeAction").classList.toggle("active", (data.action_taken && data.action_taken.length > 0));
+        try {
+          latestPacket = JSON.parse(event.data);
+          hasNewPacket = true;
+        } catch (err) {
+          console.error("Packet parse error:", err);
         }
       };
     }
