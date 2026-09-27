@@ -120,7 +120,7 @@ async def _singleton_game_loop():
     if agent is None:
         return
 
-    fps_base = 35.0
+    fps_base = 20.0
     frame_interval = 1.0 / fps_base
     last_log_time = 0.0
     last_frame_time = time.perf_counter()

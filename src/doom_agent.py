@@ -150,7 +150,7 @@ class DoomConnectomeAgent:
         action_binary, action_probs = self.decoder.decode(act, visual_meta, params=self.engine.params)
 
         # 4. Execute in DOOM (2 frame skip for natural, smooth, non-hyper speed)
-        reward = self.game.make_action(action_binary, 2)
+        reward = self.game.make_action(action_binary, 1)
         self.episode_reward += reward
         self.total_reward += reward
         self.step_count += 1
