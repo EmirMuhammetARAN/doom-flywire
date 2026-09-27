@@ -7,6 +7,7 @@ Gradio's FastAPI router before demo.launch() is called.
 """
 
 import os
+import sys
 # Disable Gradio 6 Node.js SSR server so FastAPI handles all requests directly
 os.environ["GRADIO_SSR_MODE"] = "false"
 os.environ["GRADIO_NODE_PATH"] = ""
@@ -121,6 +122,7 @@ async def _singleton_game_loop():
 
     fps_base = 22.0
     frame_interval = 1.0 / fps_base
+    last_log_time = 0.0
 
     while True:
         try:
@@ -136,7 +138,17 @@ async def _singleton_game_loop():
                 continue
 
             dt = time.perf_counter() - t0
-            data["instant_fps"] = round(1.0 / max(dt, 1e-4), 1)
+            fps = round(1.0 / max(dt, 1e-4), 1)
+            data["instant_fps"] = fps
+
+            # Live tqdm-style in-place telemetry logger (overwrites the line with \r)
+            now = time.perf_counter()
+            if now - last_log_time >= 0.5:
+                step = data.get("step", 0)
+                act = data.get("action_taken", ["IDLE"])
+                sys.stdout.write(f"\r[DOOM-FlyWire] Step {step:,} | FPS: {fps:.1f} | Action: {act} | Active Viewers: {len(_active_websockets)}   ")
+                sys.stdout.flush()
+                last_log_time = now
 
             # Broadcast frame to all active connections
             dead = set()
